@@ -24,7 +24,6 @@ export default function AnalyticsPage() {
   const totalIncome   = txns.filter(t => ["received","deposit"].includes(t.type)).reduce((s,t)=>s+t.amount,0);
   const totalExpenses = txns.filter(t => ["sent","bill"].includes(t.type)).reduce((s,t)=>s+t.amount,0);
   const savings       = Math.max(0, totalIncome - totalExpenses);
-  const avgSpend      = totalExpenses > 0 ? totalExpenses / Math.max(1, txns.filter(t=>["sent","bill"].includes(t.type)).length) : 0;
   const creditScore   = Math.min(850, 600 + Math.floor(userData.balance / 100) + txns.filter(t=>t.status==="Completed").length * 2);
 
   // 6-month bar data
