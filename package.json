@@ -2,7 +2,7 @@
   "name": "quincore-bank",
   "version": "1.0.0",
   "private": true,
-  "homepage": "https://YOUR_GITHUB_USERNAME.github.io/quincore-bank",
+  "homepage": "/",
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
     "firebase": "^10.7.0",
