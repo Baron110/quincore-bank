@@ -138,13 +138,7 @@ export default function DashboardPage() {
     if (amount > userData.balance) { setModalError("Insufficient balance."); return false; }
     return true;
   };
-
-  const proceedToPin = () => {
-    setModalError("");
-    if (!validateSend()) return;
-    setModalStep(2);
-  };
-
+  
   const executeSend = async () => {
     const amount = parseFloat(sendForm.amount);
     const sym    = userData.currencySymbol || "$";
