@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { doc, updateDoc, arrayUnion, getDoc } from "firebase/firestore";
 import emailjs from "@emailjs/browser";
 import { db, auth } from "../firebaseConfig";
@@ -9,7 +9,7 @@ import MobileNav from "../components/MobileNav";
 import Header from "../components/Header";
 import { fmt, generateTxnId, nowDateTime, TXN_META } from "../utils";
 
-// ─── EmailJS Config ───────────────────────────────────────────────────────────
+// ─── EmailJS ──────────────────────────────────────────────────────────────────
 const EMAILJS_SERVICE_ID  = "service_sn7i0ob";
 const EMAILJS_TEMPLATE_ID = "template_239am4e";
 const EMAILJS_PUBLIC_KEY  = "qyX5zHQs3vzkNzM7m";
@@ -25,31 +25,32 @@ const sendTransactionEmail = async (params) => {
 // ─── Modal Wrapper ────────────────────────────────────────────────────────────
 function Modal({ title, onClose, onSubmit, loading, submitLabel = "Confirm", children, success }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-md bg-primary/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/40 backdrop-blur-sm">
       <div className="bg-surface-container-lowest w-full max-w-[520px] rounded-xl shadow-xl border border-outline-variant overflow-hidden">
-        <div className="p-md flex justify-between items-center border-b border-outline-variant/30">
-          <h2 className="font-hanken text-headline-md text-primary">{title}</h2>
+        <div className="px-6 py-4 flex justify-between items-center border-b border-outline-variant/30">
+          <h2 className="font-hanken text-xl font-bold text-primary">{title}</h2>
           <button onClick={onClose} className="material-symbols-outlined text-on-surface-variant active:scale-95">close</button>
         </div>
-        <div className="p-lg space-y-md">
+        <div className="p-6 space-y-4">
           {success ? (
-            <div className="text-center py-md">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-md">
+            <div className="text-center py-4">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="material-symbols-outlined text-green-600" style={{ fontSize: 40, fontVariationSettings: "'FILL' 1" }}>check_circle</span>
               </div>
-              <p className="font-hanken text-headline-md text-primary">{success}</p>
+              <p className="font-hanken text-xl font-bold text-primary">{success}</p>
             </div>
           ) : (
             <>
               {children}
-              <div className="flex gap-md pt-xs">
-                <button onClick={onClose} className="flex-1 border border-outline-variant py-sm rounded-lg font-label-md text-on-surface-variant hover:bg-surface-container-low transition-colors">
+              <div className="flex gap-3 pt-1">
+                <button onClick={onClose}
+                  className="flex-1 border border-outline-variant py-3 rounded-lg text-xs font-bold text-on-surface-variant hover:bg-surface-container-low transition-colors">
                   Cancel
                 </button>
                 <button onClick={onSubmit} disabled={loading}
-                  className="flex-1 bg-primary text-on-primary py-sm rounded-lg font-label-md active:scale-95 transition-transform disabled:opacity-60 flex items-center justify-center gap-sm">
+                  className="flex-1 bg-primary text-on-primary py-3 rounded-lg text-xs font-bold active:scale-95 transition-transform disabled:opacity-60 flex items-center justify-center gap-2">
                   {loading
-                    ? <><span className="material-symbols-outlined text-[18px] animate-spin">sync</span> Processing…</>
+                    ? <><span className="material-symbols-outlined text-[16px] animate-spin">sync</span> Processing…</>
                     : submitLabel}
                 </button>
               </div>
@@ -64,37 +65,46 @@ function Modal({ title, onClose, onSubmit, loading, submitLabel = "Confirm", chi
 function Field({ label, children }) {
   return (
     <div>
-      <label className="font-label-md text-label-md text-primary block mb-xs">{label}</label>
+      <label className="text-xs font-bold text-primary block mb-1 uppercase tracking-wider">{label}</label>
       {children}
     </div>
   );
 }
 
-const inputCls = "w-full px-md py-sm rounded-lg border border-outline-variant font-body-sm focus:outline-none focus:border-primary transition-colors bg-white";
+const inputCls = "w-full px-3 py-3 rounded-lg border border-outline-variant text-sm focus:outline-none focus:border-primary transition-colors bg-white";
 
-// ─── Dashboard Page ───────────────────────────────────────────────────────────
+// ─── Dashboard ────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
-  const uid = auth.currentUser?.uid;
+  const navigate  = useNavigate();
+  const uid       = auth.currentUser?.uid;
   const { userData, loading } = useUserData(uid);
 
+  // Modal state
   const [modal,        setModal]        = useState(null);
+  const [modalStep,    setModalStep]    = useState(1); // 1=form, 2=pin, 3=success
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError,   setModalError]   = useState("");
-  const [modalSuccess, setModalSuccess] = useState("");
+  const [pinInput,     setPinInput]     = useState("");
 
-  const [sendForm,    setSendForm]    = useState({ recipientEmail: "", amount: "", purpose: "" });
+  // Form states
+  const [sendMethod,  setSendMethod]  = useState("email"); // "email" | "account"
+  const [sendForm,    setSendForm]    = useState({ recipientEmail: "", recipientAccount: "", amount: "", purpose: "" });
   const [depositAmt,  setDepositAmt]  = useState("");
   const [requestForm, setRequestForm] = useState({ recipientEmail: "", amount: "", note: "" });
   const [billForm,    setBillForm]    = useState({ billType: "", amount: "", ref: "" });
 
+  // Pending transaction data (set before PIN step)
+  const [pendingTxn, setPendingTxn] = useState(null);
+
   const openModal = (name) => {
-    setModal(name); setModalError(""); setModalSuccess("");
-    setSendForm({ recipientEmail: "", amount: "", purpose: "" });
+    setModal(name); setModalStep(1); setModalError("");
+    setPinInput(""); setPendingTxn(null); setSendMethod("email");
+    setSendForm({ recipientEmail: "", recipientAccount: "", amount: "", purpose: "" });
     setDepositAmt("");
     setRequestForm({ recipientEmail: "", amount: "", note: "" });
     setBillForm({ billType: "", amount: "", ref: "" });
   };
-  const closeModal = () => { setModal(null); setModalError(""); setModalSuccess(""); };
+  const closeModal = () => { setModal(null); setModalStep(1); setModalError(""); setPinInput(""); };
 
   const addTxn = async (targetUid, txn, delta) => {
     const ref  = doc(db, "users", targetUid);
@@ -102,72 +112,115 @@ export default function DashboardPage() {
     await updateDoc(ref, { balance: snap.data().balance + delta, transactions: arrayUnion(txn) });
   };
 
-  // ── Send Money ──────────────────────────────────────────────────────────────
-  const handleSend = async () => {
-    const amount = parseFloat(sendForm.amount);
-    if (!sendForm.recipientEmail || !amount || amount <= 0) { setModalError("Fill all fields."); return; }
-    if (sendForm.recipientEmail.toLowerCase() === userData.email) { setModalError("Cannot send to yourself."); return; }
-    if (amount > userData.balance) { setModalError("Insufficient balance."); return; }
-    setModalLoading(true); setModalError("");
+  // ── Verify PIN then execute ─────────────────────────────────────────────────
+  const handlePinVerify = async () => {
+    if (pinInput !== userData.pin) {
+      setModalError("Incorrect PIN. Please try again.");
+      setPinInput("");
+      return;
+    }
+    setModalError("");
+    setModalLoading(true);
     try {
-      const { getDocs, collection, query, where } = await import("firebase/firestore");
-      const q    = query(collection(db, "users"), where("email", "==", sendForm.recipientEmail.toLowerCase().trim()));
-      const snap = await getDocs(q);
-      const ts   = nowDateTime();
-      const id   = generateTxnId();
-      const sym  = userData.currencySymbol || "$";
+      await pendingTxn();
+    } finally {
+      setModalLoading(false);
+    }
+  };
 
-      await addTxn(uid, {
-        id, type: "sent", amount,
-        description: `Sent to ${sendForm.recipientEmail}`,
-        purpose: sendForm.purpose || "Transfer",
+  // ── Send Money ──────────────────────────────────────────────────────────────
+  const validateSend = () => {
+    const amount = parseFloat(sendForm.amount);
+    if (sendMethod === "email" && !sendForm.recipientEmail) { setModalError("Enter recipient email."); return false; }
+    if (sendMethod === "account" && !sendForm.recipientAccount) { setModalError("Enter account number."); return false; }
+    if (!amount || amount <= 0) { setModalError("Enter a valid amount."); return false; }
+    if (sendMethod === "email" && sendForm.recipientEmail.toLowerCase() === userData.email) { setModalError("Cannot send to yourself."); return false; }
+    if (amount > userData.balance) { setModalError("Insufficient balance."); return false; }
+    return true;
+  };
+
+  const proceedToPin = () => {
+    setModalError("");
+    if (!validateSend()) return;
+    setModalStep(2);
+  };
+
+  const executeSend = async () => {
+    const amount = parseFloat(sendForm.amount);
+    const sym    = userData.currencySymbol || "$";
+    const { getDocs, collection, query, where } = await import("firebase/firestore");
+
+    let recipientSnap = null;
+    if (sendMethod === "email") {
+      const q = query(collection(db, "users"), where("email", "==", sendForm.recipientEmail.toLowerCase().trim()));
+      recipientSnap = await getDocs(q);
+    } else {
+      const q = query(collection(db, "users"), where("accountNumber", "==", sendForm.recipientAccount.trim()));
+      recipientSnap = await getDocs(q);
+    }
+
+    const ts  = nowDateTime();
+    const id  = generateTxnId();
+    const recipientIdentifier = sendMethod === "email" ? sendForm.recipientEmail : sendForm.recipientAccount;
+
+    await addTxn(uid, {
+      id, type: "sent", amount,
+      description: `Sent to ${recipientIdentifier}`,
+      purpose: sendForm.purpose || "Transfer",
+      ...ts, status: "Completed", category: "Transfer",
+      icon: TXN_META.sent.icon, color: TXN_META.sent.color,
+    }, -amount);
+
+    let recipientName = recipientIdentifier;
+    let recipientEmail = sendMethod === "email" ? sendForm.recipientEmail : "";
+
+    if (recipientSnap && !recipientSnap.empty) {
+      const recipientDoc  = recipientSnap.docs[0];
+      const recipientData = recipientDoc.data();
+      recipientName  = recipientData.fullName || recipientIdentifier;
+      recipientEmail = recipientData.email;
+
+      await addTxn(recipientDoc.id, {
+        id: generateTxnId(), type: "received", amount,
+        description: `Received from ${userData.email}`,
         ...ts, status: "Completed", category: "Transfer",
-        icon: TXN_META.sent.icon, color: TXN_META.sent.color,
-      }, -amount);
+        icon: TXN_META.received.icon, color: TXN_META.received.color,
+      }, amount);
 
-      // Email to sender
       await sendTransactionEmail({
-        to_email:         userData.email,
-        recipient_name:   userData.firstName,
-        subject:          `You sent ${fmt(amount, sym)}`,
-        message:          `You successfully sent ${fmt(amount, sym)} to ${sendForm.recipientEmail}. Purpose: ${sendForm.purpose || "Transfer"}.`,
-        transaction_type: "💸 Debit",
-        amount:           fmt(amount, sym),
-        date:             ts.date,
-        transaction_id:   id,
-        new_balance:      fmt(userData.balance - amount, sym),
-        footer_note:      "If you did not authorize this transaction, contact support immediately.",
+        to_email: recipientEmail, recipient_name: recipientData.firstName || "there",
+        subject: `You received ${fmt(amount, sym)}`,
+        message: `You received ${fmt(amount, sym)} from ${userData.email}.`,
+        transaction_type: "💰 Credit", amount: fmt(amount, sym),
+        date: ts.date, transaction_id: generateTxnId(),
+        new_balance: fmt(recipientData.balance + amount, sym),
+        footer_note: "Log in to QuinCore to view details.",
       });
+    }
 
-      if (!snap.empty) {
-        const recipientDoc  = snap.docs[0];
-        const recipientData = recipientDoc.data();
-        await addTxn(recipientDoc.id, {
-          id: generateTxnId(), type: "received", amount,
-          description: `Received from ${userData.email}`,
-          ...ts, status: "Completed", category: "Transfer",
-          icon: TXN_META.received.icon, color: TXN_META.received.color,
-        }, amount);
+    await sendTransactionEmail({
+      to_email: userData.email, recipient_name: userData.firstName,
+      subject: `You sent ${fmt(amount, sym)}`,
+      message: `You sent ${fmt(amount, sym)} to ${recipientIdentifier}.`,
+      transaction_type: "💸 Debit", amount: fmt(amount, sym),
+      date: ts.date, transaction_id: id,
+      new_balance: fmt(userData.balance - amount, sym),
+      footer_note: "If unauthorized, contact support immediately.",
+    });
 
-        // Email to recipient
-        await sendTransactionEmail({
-          to_email:         sendForm.recipientEmail,
-          recipient_name:   recipientData.firstName || "there",
-          subject:          `You received ${fmt(amount, sym)}`,
-          message:          `Great news! You received ${fmt(amount, sym)} from ${userData.email}.`,
-          transaction_type: "💰 Credit",
-          amount:           fmt(amount, sym),
-          date:             ts.date,
-          transaction_id:   generateTxnId(),
-          new_balance:      fmt(recipientData.balance + amount, sym),
-          footer_note:      "Log in to your QuinCore account to view full details.",
-        });
-      }
-
-      setModalSuccess(`${fmt(amount, userData.currencySymbol)} sent successfully!`);
-      setTimeout(closeModal, 2000);
-    } catch (e) { setModalError(e.message); }
-    finally { setModalLoading(false); }
+    closeModal();
+    navigate("/receipt", {
+      state: {
+        amount: amount.toFixed(2),
+        recipientName,
+        recipientEmail,
+        transactionId: id,
+        date: ts.date, time: ts.time,
+        type: "Transfer",
+        newBalance: (userData.balance - amount).toFixed(2),
+        symbol: sym,
+      },
+    });
   };
 
   // ── Deposit ─────────────────────────────────────────────────────────────────
@@ -180,27 +233,34 @@ export default function DashboardPage() {
       const sym = userData.currencySymbol || "$";
       const id  = generateTxnId();
       await addTxn(uid, {
-        id, type: "deposit", amount,
-        description: "Manual deposit",
+        id, type: "deposit", amount, description: "Manual deposit",
         ...ts, status: "Completed", category: "Income",
         icon: TXN_META.deposit.icon, color: TXN_META.deposit.color,
       }, amount);
 
       await sendTransactionEmail({
-        to_email:         userData.email,
-        recipient_name:   userData.firstName,
-        subject:          `Deposit Confirmed — ${fmt(amount, sym)}`,
-        message:          `Your deposit of ${fmt(amount, sym)} into your QuinCore account was successful.`,
-        transaction_type: "💰 Credit",
-        amount:           fmt(amount, sym),
-        date:             ts.date,
-        transaction_id:   id,
-        new_balance:      fmt(userData.balance + amount, sym),
-        footer_note:      "Thank you for banking with QuinCore.",
+        to_email: userData.email, recipient_name: userData.firstName,
+        subject: `Deposit Confirmed — ${fmt(amount, sym)}`,
+        message: `Your deposit of ${fmt(amount, sym)} was successful.`,
+        transaction_type: "💰 Credit", amount: fmt(amount, sym),
+        date: ts.date, transaction_id: id,
+        new_balance: fmt(userData.balance + amount, sym),
+        footer_note: "Thank you for banking with QuinCore.",
       });
 
-      setModalSuccess(`${fmt(amount, userData.currencySymbol)} deposited!`);
-      setTimeout(closeModal, 2000);
+      closeModal();
+      navigate("/receipt", {
+        state: {
+          amount: amount.toFixed(2),
+          recipientName: "Your Account",
+          recipientEmail: userData.email,
+          transactionId: id,
+          date: ts.date, time: ts.time,
+          type: "deposit",
+          newBalance: (userData.balance + amount).toFixed(2),
+          symbol: sym,
+        },
+      });
     } catch (e) { setModalError(e.message); }
     finally { setModalLoading(false); }
   };
@@ -233,46 +293,61 @@ export default function DashboardPage() {
           }),
         });
       }
-      setModalSuccess("Money request sent!");
-      setTimeout(closeModal, 2000);
+      setModal(null);
+      setModalStep(1);
     } catch (e) { setModalError(e.message); }
     finally { setModalLoading(false); }
   };
 
   // ── Pay Bill ────────────────────────────────────────────────────────────────
-  const handleBill = async () => {
+  const validateBill = () => {
     const amount = parseFloat(billForm.amount);
-    if (!billForm.billType || isNaN(amount) || amount <= 0) { setModalError("Fill all fields."); return; }
-    if (amount > userData.balance) { setModalError("Insufficient balance."); return; }
-    setModalLoading(true); setModalError("");
-    try {
-      const ts  = nowDateTime();
-      const sym = userData.currencySymbol || "$";
-      const id  = generateTxnId();
-      await addTxn(uid, {
-        id, type: "bill", amount,
-        description: `${billForm.billType} bill payment`,
-        accountRef: billForm.ref, ...ts, status: "Completed", category: "Bills",
-        icon: TXN_META.bill.icon, color: TXN_META.bill.color,
-      }, -amount);
+    if (!billForm.billType || isNaN(amount) || amount <= 0) { setModalError("Fill all fields."); return false; }
+    if (amount > userData.balance) { setModalError("Insufficient balance."); return false; }
+    return true;
+  };
 
-      await sendTransactionEmail({
-        to_email:         userData.email,
-        recipient_name:   userData.firstName,
-        subject:          `Bill Payment Confirmed — ${fmt(amount, sym)}`,
-        message:          `Your ${billForm.billType} bill payment of ${fmt(amount, sym)} has been processed successfully.`,
-        transaction_type: "🧾 Bill Payment",
-        amount:           fmt(amount, sym),
-        date:             ts.date,
-        transaction_id:   id,
-        new_balance:      fmt(userData.balance - amount, sym),
-        footer_note:      "If you did not make this payment, contact support immediately.",
-      });
+  const proceedBillToPin = () => {
+    setModalError("");
+    if (!validateBill()) return;
+    setModalStep(2);
+  };
 
-      setModalSuccess(`${billForm.billType} bill of ${fmt(amount, userData.currencySymbol)} paid!`);
-      setTimeout(closeModal, 2000);
-    } catch (e) { setModalError(e.message); }
-    finally { setModalLoading(false); }
+  const executeBill = async () => {
+    const amount = parseFloat(billForm.amount);
+    const sym    = userData.currencySymbol || "$";
+    const ts     = nowDateTime();
+    const id     = generateTxnId();
+    await addTxn(uid, {
+      id, type: "bill", amount,
+      description: `${billForm.billType} bill payment`,
+      accountRef: billForm.ref, ...ts, status: "Completed", category: "Bills",
+      icon: TXN_META.bill.icon, color: TXN_META.bill.color,
+    }, -amount);
+
+    await sendTransactionEmail({
+      to_email: userData.email, recipient_name: userData.firstName,
+      subject: `Bill Payment Confirmed — ${fmt(amount, sym)}`,
+      message: `Your ${billForm.billType} bill of ${fmt(amount, sym)} was paid.`,
+      transaction_type: "🧾 Bill Payment", amount: fmt(amount, sym),
+      date: ts.date, transaction_id: id,
+      new_balance: fmt(userData.balance - amount, sym),
+      footer_note: "If unauthorized, contact support immediately.",
+    });
+
+    closeModal();
+    navigate("/receipt", {
+      state: {
+        amount: amount.toFixed(2),
+        recipientName: billForm.billType,
+        recipientEmail: "",
+        transactionId: id,
+        date: ts.date, time: ts.time,
+        type: "bill",
+        newBalance: (userData.balance - amount).toFixed(2),
+        symbol: sym,
+      },
+    });
   };
 
   // ── Loading / No Data ───────────────────────────────────────────────────────
@@ -281,7 +356,7 @@ export default function DashboardPage() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <span className="material-symbols-outlined text-primary text-5xl animate-spin">sync</span>
-          <p className="font-label-md text-on-surface-variant mt-4">Loading your account…</p>
+          <p className="text-xs font-semibold text-on-surface-variant mt-4">Loading your account…</p>
         </div>
       </div>
     );
@@ -294,11 +369,67 @@ export default function DashboardPage() {
     return null;
   }
 
-  const recentTxns  = [...(userData.transactions || [])].reverse().slice(0, 3);
-  const sym         = userData.currencySymbol || "$";
-  const totalSpent  = (userData.transactions || []).filter(t => ["sent","bill"].includes(t.type)).reduce((s,t) => s + t.amount, 0);
+  const recentTxns    = [...(userData.transactions || [])].reverse().slice(0, 3);
+  const sym           = userData.currencySymbol || "$";
+  const totalSpent    = (userData.transactions || []).filter(t => ["sent","bill"].includes(t.type)).reduce((s,t) => s + t.amount, 0);
   const totalReceived = (userData.transactions || []).filter(t => ["received","deposit"].includes(t.type)).reduce((s,t) => s + t.amount, 0);
-  const savingsRate = totalReceived > 0 ? Math.max(0, Math.round(((totalReceived - totalSpent) / totalReceived) * 100)) : 0;
+  const savingsRate   = totalReceived > 0 ? Math.max(0, Math.round(((totalReceived - totalSpent) / totalReceived) * 100)) : 0;
+
+  // ── PIN Step UI ─────────────────────────────────────────────────────────────
+  const PinStep = ({ onBack }) => (
+    <div className="space-y-4">
+      <div className="text-center">
+        <div className="w-14 h-14 bg-primary-fixed rounded-full flex items-center justify-center mx-auto mb-3">
+          <span className="material-symbols-outlined text-primary text-[28px]">lock</span>
+        </div>
+        <p className="text-sm font-semibold text-primary">Enter your transaction PIN to confirm</p>
+        <p className="text-xs text-on-surface-variant mt-1">This is the PIN you set during signup</p>
+      </div>
+      {modalError && <p className="text-error text-xs text-center font-semibold">{modalError}</p>}
+      <div className="flex justify-center gap-2">
+        {[0,1,2,3,4,5].slice(0, userData.pin?.length || 4).map((_, i) => (
+          <div key={i} className={`w-10 h-10 rounded-lg border-2 flex items-center justify-center text-lg font-bold transition-all ${
+            pinInput[i] ? "border-primary bg-primary text-on-primary" : "border-outline-variant bg-surface-container-low"
+          }`}>
+            {pinInput[i] ? "•" : ""}
+          </div>
+        ))}
+      </div>
+      {/* Number pad */}
+      <div className="grid grid-cols-3 gap-2 max-w-[240px] mx-auto">
+        {[1,2,3,4,5,6,7,8,9,"",0,"⌫"].map((key, i) => (
+          <button key={i} type="button"
+            onClick={() => {
+              if (key === "⌫") { setPinInput(p => p.slice(0,-1)); setModalError(""); }
+              else if (key !== "" && pinInput.length < (userData.pin?.length || 4)) {
+                setPinInput(p => p + String(key));
+              }
+            }}
+            className={`h-12 rounded-xl text-base font-bold transition-all active:scale-95 ${
+              key === "" ? "invisible" :
+              key === "⌫" ? "bg-error-container text-on-error-container" :
+              "bg-surface-container-low hover:bg-surface-container-high text-primary border border-outline-variant"
+            }`}>
+            {key}
+          </button>
+        ))}
+      </div>
+      <div className="flex gap-3 pt-1">
+        <button onClick={() => { setModalStep(1); setModalError(""); setPinInput(""); }}
+          className="flex-1 border border-outline-variant py-3 rounded-lg text-xs font-bold text-on-surface-variant">
+          Back
+        </button>
+        <button
+          onClick={handlePinVerify}
+          disabled={modalLoading || pinInput.length < (userData.pin?.length || 4)}
+          className="flex-1 bg-primary text-on-primary py-3 rounded-lg text-xs font-bold disabled:opacity-60 flex items-center justify-center gap-2">
+          {modalLoading
+            ? <><span className="material-symbols-outlined text-[16px] animate-spin">sync</span> Verifying…</>
+            : "Confirm"}
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="bg-background min-h-screen">
@@ -314,22 +445,23 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
             <section className="lg:col-span-8 bg-primary-container rounded-xl p-lg text-on-primary shadow-lg flex flex-col justify-between min-h-[240px] relative overflow-hidden">
               <div className="absolute -right-16 -top-16 w-64 h-64 bg-secondary-fixed/10 rounded-full blur-3xl" />
-              <div className="relative z-10 flex justify-between items-start">
-                <div>
-                  <p className="font-label-md text-on-primary-container">Available Balance</p>
-                  <h2 className="font-hanken text-headline-xl mt-xs">{fmt(userData.balance, sym)}</h2>
+              <div className="relative z-10 flex justify-between items-start gap-3">
+                <div className="min-w-0">
+                  <p className="font-label-md text-on-primary-container text-xs">Available Balance</p>
+                  <h2 className="font-hanken font-bold mt-1 text-3xl md:text-5xl break-all leading-tight">{fmt(userData.balance, sym)}</h2>
                 </div>
-                <div className="bg-secondary-fixed text-on-secondary-fixed px-sm py-xs rounded-lg font-label-md flex items-center gap-xs">
-                  <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>stars</span>
-                  {userData.accountType?.toUpperCase()} TIER
+                <div className="bg-secondary-fixed text-on-secondary-fixed px-2 py-1 rounded-lg font-label-md flex items-center gap-1 flex-shrink-0 text-xs">
+                  <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>stars</span>
+                  <span className="hidden sm:inline">{userData.accountType?.toUpperCase()} TIER</span>
+                  <span className="sm:hidden">{userData.accountType?.[0]}TIER</span>
                 </div>
               </div>
               <div className="relative z-10 flex justify-between items-end mt-xl">
                 <div>
-                  <p className="font-label-sm text-on-primary-container tracking-widest uppercase">Account Number</p>
-                  <p className="font-body-md mt-xs">{userData.accountNumber}</p>
+                  <p className="font-label-sm text-on-primary-container tracking-widest uppercase text-[10px]">Account Number</p>
+                  <p className="font-body-md mt-xs text-sm">{userData.accountNumber}</p>
                 </div>
-                <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
+                <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 flex-shrink-0">
                   <span className="material-symbols-outlined">contactless</span>
                 </div>
               </div>
@@ -337,19 +469,19 @@ export default function DashboardPage() {
 
             <section className="lg:col-span-4 flex flex-col gap-gutter">
               <div className="bg-surface-container-lowest border border-outline-variant p-md rounded-xl flex-grow flex flex-col justify-center">
-                <p className="font-label-sm text-on-surface-variant uppercase">Total Spent (Month)</p>
+                <p className="font-label-sm text-on-surface-variant uppercase text-[10px]">Total Spent (Month)</p>
                 <div className="flex items-baseline gap-xs mt-base">
-                  <h3 className="font-hanken text-headline-md">{fmt(totalSpent, sym)}</h3>
-                  <span className="text-error font-label-sm flex items-center">
+                  <h3 className="font-hanken text-xl font-bold">{fmt(totalSpent, sym)}</h3>
+                  <span className="text-error text-xs flex items-center">
                     <span className="material-symbols-outlined text-[14px]">arrow_upward</span>
                   </span>
                 </div>
               </div>
               <div className="bg-surface-container-lowest border border-outline-variant p-md rounded-xl flex-grow flex flex-col justify-center">
-                <p className="font-label-sm text-on-surface-variant uppercase">Total Received</p>
+                <p className="font-label-sm text-on-surface-variant uppercase text-[10px]">Total Received</p>
                 <div className="flex items-baseline gap-xs mt-base">
-                  <h3 className="font-hanken text-headline-md">{fmt(totalReceived, sym)}</h3>
-                  <span className="text-primary font-label-sm flex items-center">
+                  <h3 className="font-hanken text-xl font-bold">{fmt(totalReceived, sym)}</h3>
+                  <span className="text-primary text-xs flex items-center">
                     <span className="material-symbols-outlined text-[14px]">arrow_downward</span>
                   </span>
                 </div>
@@ -359,7 +491,7 @@ export default function DashboardPage() {
 
           {/* ── Quick Actions ── */}
           <section>
-            <h3 className="font-label-md text-on-surface-variant mb-md uppercase tracking-wider">Quick Actions</h3>
+            <h3 className="font-label-md text-on-surface-variant mb-md uppercase tracking-wider text-xs">Quick Actions</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-md">
               {[
                 { label: "Send Money", icon: "send",          action: () => openModal("send") },
@@ -370,7 +502,7 @@ export default function DashboardPage() {
                 <button key={q.label} onClick={q.action}
                   className="flex flex-col items-center justify-center p-md bg-surface-container-lowest border border-outline-variant rounded-xl hover:border-primary transition-all active:scale-95">
                   <span className="material-symbols-outlined text-primary mb-sm text-[32px]">{q.icon}</span>
-                  <span className="font-label-md">{q.label}</span>
+                  <span className="font-label-md text-xs font-bold">{q.label}</span>
                 </button>
               ))}
             </div>
@@ -380,42 +512,42 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
             <section className="lg:col-span-8 bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden">
               <div className="p-md border-b border-outline-variant flex justify-between items-center">
-                <h3 className="font-hanken text-headline-md">Recent Transactions</h3>
-                <Link to="/transactions" className="text-primary font-label-md hover:underline">View All</Link>
+                <h3 className="font-hanken text-lg font-bold">Recent Transactions</h3>
+                <Link to="/transactions" className="text-primary font-label-md hover:underline text-xs font-bold">View All</Link>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead className="bg-surface-container-low">
                     <tr>
-                      <th className="px-md py-sm font-label-sm text-on-surface-variant">Description</th>
-                      <th className="px-md py-sm font-label-sm text-on-surface-variant">Date</th>
-                      <th className="px-md py-sm font-label-sm text-on-surface-variant">Amount</th>
-                      <th className="px-md py-sm font-label-sm text-on-surface-variant text-right">Status</th>
+                      <th className="px-md py-sm text-xs font-bold text-on-surface-variant">Description</th>
+                      <th className="px-md py-sm text-xs font-bold text-on-surface-variant">Date</th>
+                      <th className="px-md py-sm text-xs font-bold text-on-surface-variant">Amount</th>
+                      <th className="px-md py-sm text-xs font-bold text-on-surface-variant text-right">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-outline-variant/30">
                     {recentTxns.length === 0 ? (
-                      <tr><td colSpan={4} className="px-md py-lg text-center font-label-md text-on-surface-variant">No transactions yet</td></tr>
+                      <tr><td colSpan={4} className="px-md py-lg text-center text-xs font-semibold text-on-surface-variant">No transactions yet</td></tr>
                     ) : recentTxns.map((tx) => {
                       const isIn  = ["received","deposit"].includes(tx.type);
                       const isOut = ["sent","bill"].includes(tx.type);
                       return (
                         <tr key={tx.id} className="hover:bg-surface-container-low transition-colors">
                           <td className="px-md py-md flex items-center gap-md">
-                            <div className={`w-10 h-10 rounded-lg ${tx.color || "bg-secondary-container"} flex items-center justify-center`}>
+                            <div className={`w-10 h-10 rounded-lg ${tx.color || "bg-secondary-container"} flex items-center justify-center flex-shrink-0`}>
                               <span className="material-symbols-outlined">{tx.icon || "receipt"}</span>
                             </div>
-                            <div>
-                              <p className="font-label-md">{tx.description}</p>
-                              <p className="font-body-sm text-on-surface-variant">{tx.category}</p>
+                            <div className="min-w-0">
+                              <p className="font-label-md text-xs font-bold truncate max-w-[120px] md:max-w-none">{tx.description}</p>
+                              <p className="text-xs text-on-surface-variant">{tx.category}</p>
                             </div>
                           </td>
-                          <td className="px-md py-md font-body-sm">{tx.date}</td>
-                          <td className={`px-md py-md font-label-md ${isIn ? "text-green-600" : isOut ? "text-error" : "text-primary"}`}>
+                          <td className="px-md py-md text-xs">{tx.date}</td>
+                          <td className={`px-md py-md text-xs font-bold ${isIn ? "text-green-600" : isOut ? "text-error" : "text-primary"}`}>
                             {isIn ? "+" : isOut ? "-" : ""}{fmt(tx.amount, sym)}
                           </td>
                           <td className="px-md py-md text-right">
-                            <span className={`px-sm py-xs rounded-full font-label-sm ${tx.status === "Completed" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+                            <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${tx.status === "Completed" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
                               {tx.status}
                             </span>
                           </td>
@@ -429,21 +561,21 @@ export default function DashboardPage() {
 
             <section className="lg:col-span-4 space-y-gutter">
               <div className="bg-surface-container-lowest border border-outline-variant p-md rounded-xl">
-                <h3 className="font-label-md text-on-surface-variant mb-md uppercase tracking-wider">Savings Rate</h3>
+                <h3 className="font-label-md text-on-surface-variant mb-md uppercase tracking-wider text-xs font-bold">Savings Rate</h3>
                 <div className="flex items-center justify-between mb-xs">
-                  <span className="font-hanken text-headline-md">{savingsRate}%</span>
-                  <span className="text-on-surface-variant font-label-sm">Goal: 30%</span>
+                  <span className="font-hanken text-2xl font-bold">{savingsRate}%</span>
+                  <span className="text-on-surface-variant text-xs">Goal: 30%</span>
                 </div>
                 <div className="w-full bg-surface-container-low h-2 rounded-full overflow-hidden">
                   <div className="bg-primary h-full" style={{ width: `${Math.min(100, savingsRate)}%` }} />
                 </div>
-                <p className="mt-md font-body-sm text-on-surface-variant">Keep growing your savings, {userData.firstName}!</p>
+                <p className="mt-md text-xs text-on-surface-variant">Keep growing your savings, {userData.firstName}!</p>
               </div>
               <div className="bg-primary-container p-md rounded-xl text-on-primary">
-                <h4 className="font-label-md text-on-primary-container mb-sm">Premium Insights</h4>
-                <p className="font-body-sm italic">"Track your spending and hit your savings goal faster."</p>
+                <h4 className="font-label-md text-on-primary-container mb-sm text-xs font-bold">Premium Insights</h4>
+                <p className="text-xs italic">"Track your spending and hit your savings goal faster."</p>
                 <Link to="/analytics">
-                  <button className="mt-md w-full py-sm bg-secondary-fixed text-on-secondary-fixed rounded-lg font-label-md active:scale-95 transition-transform">
+                  <button className="mt-md w-full py-sm bg-secondary-fixed text-on-secondary-fixed rounded-lg font-label-md active:scale-95 transition-transform text-xs font-bold">
                     Explore Analytics
                   </button>
                 </Link>
@@ -453,33 +585,66 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Modals ── */}
+      {/* ─── MODALS ─────────────────────────────────────────────────────────── */}
+
+      {/* SEND MONEY */}
       {modal === "send" && (
-        <Modal title="Send Money" onClose={closeModal} onSubmit={handleSend} loading={modalLoading} submitLabel="Send Money" success={modalSuccess}>
-          {modalError && <p className="text-error font-label-sm mb-sm">{modalError}</p>}
-          <Field label="Recipient Email">
-            <input className={inputCls} type="email" placeholder="friend@email.com"
-              value={sendForm.recipientEmail} onChange={e => setSendForm(p => ({ ...p, recipientEmail: e.target.value }))} />
-          </Field>
-          <Field label={`Amount (${sym})`}>
-            <input className={inputCls} type="number" placeholder="0.00"
-              value={sendForm.amount} onChange={e => setSendForm(p => ({ ...p, amount: e.target.value }))} />
-            <p className="font-label-sm text-on-surface-variant mt-xs">Available: {fmt(userData.balance, sym)}</p>
-          </Field>
-          <Field label="Purpose (optional)">
-            <input className={inputCls} placeholder="e.g. Rent, Lunch…"
-              value={sendForm.purpose} onChange={e => setSendForm(p => ({ ...p, purpose: e.target.value }))} />
-          </Field>
+        <Modal title="Send Money" onClose={closeModal}
+          onSubmit={modalStep === 1 ? () => { if (!validateSend()) return; setPendingTxn(() => executeSend); setModalStep(2); } : handlePinVerify}
+          loading={modalLoading}
+          submitLabel={modalStep === 1 ? "Continue →" : "Confirm & Send"}>
+          {modalStep === 1 ? (
+            <div className="space-y-4">
+              {modalError && <p className="text-error text-xs font-semibold">{modalError}</p>}
+
+              {/* Send method toggle */}
+              <div className="flex gap-2 p-1 bg-surface-container-low rounded-xl border border-outline-variant/50">
+                {[["email","Via Email","email"],["account","Via Account No.","tag"]].map(([val, label, icon]) => (
+                  <button key={val} type="button" onClick={() => { setSendMethod(val); setModalError(""); }}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${sendMethod === val ? "bg-primary text-on-primary" : "text-on-surface-variant"}`}>
+                    <span className="material-symbols-outlined text-[16px]">{icon}</span>
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {sendMethod === "email" ? (
+                <Field label="Recipient Email">
+                  <input className={inputCls} type="email" placeholder="friend@email.com"
+                    value={sendForm.recipientEmail} onChange={e => setSendForm(p => ({ ...p, recipientEmail: e.target.value }))} />
+                </Field>
+              ) : (
+                <Field label="Recipient Account Number">
+                  <input className={inputCls} placeholder="e.g. QC847291038472"
+                    value={sendForm.recipientAccount} onChange={e => setSendForm(p => ({ ...p, recipientAccount: e.target.value }))} />
+                </Field>
+              )}
+
+              <Field label={`Amount (${sym})`}>
+                <input className={inputCls} type="number" placeholder="0.00"
+                  value={sendForm.amount} onChange={e => setSendForm(p => ({ ...p, amount: e.target.value }))} />
+                <p className="text-xs text-on-surface-variant mt-1">Available: {fmt(userData.balance, sym)}</p>
+              </Field>
+
+              <Field label="Purpose (optional)">
+                <input className={inputCls} placeholder="e.g. Rent, Lunch…"
+                  value={sendForm.purpose} onChange={e => setSendForm(p => ({ ...p, purpose: e.target.value }))} />
+              </Field>
+            </div>
+          ) : (
+            <PinStep onBack={() => { setModalStep(1); setModalError(""); setPinInput(""); }} />
+          )}
         </Modal>
       )}
 
+      {/* DEPOSIT */}
       {modal === "deposit" && (
-        <Modal title="Deposit Funds" onClose={closeModal} onSubmit={handleDeposit} loading={modalLoading} submitLabel="Deposit" success={modalSuccess}>
-          {modalError && <p className="text-error font-label-sm mb-sm">{modalError}</p>}
-          <div className="flex flex-wrap gap-sm mb-md">
+        <Modal title="Deposit Funds" onClose={closeModal} onSubmit={handleDeposit} loading={modalLoading} submitLabel="Deposit">
+          {modalError && <p className="text-error text-xs font-semibold">{modalError}</p>}
+          <div className="flex flex-wrap gap-2 mb-2">
             {[100, 500, 1000, 2500, 5000].map(amt => (
               <button key={amt} type="button" onClick={() => setDepositAmt(String(amt))}
-                className={`px-md py-xs rounded-full font-label-md border transition-all ${depositAmt === String(amt) ? "bg-primary text-on-primary border-primary" : "bg-surface-container-low text-on-surface-variant border-outline-variant"}`}>
+                className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${depositAmt === String(amt) ? "bg-primary text-on-primary border-primary" : "bg-surface-container-low text-on-surface-variant border-outline-variant"}`}>
                 {sym}{amt.toLocaleString()}
               </button>
             ))}
@@ -487,14 +652,15 @@ export default function DashboardPage() {
           <Field label={`Amount (${sym})`}>
             <input className={inputCls} type="number" placeholder="Enter amount"
               value={depositAmt} onChange={e => setDepositAmt(e.target.value)} />
-            <p className="font-label-sm text-on-surface-variant mt-xs">Minimum: {sym}10</p>
+            <p className="text-xs text-on-surface-variant mt-1">Minimum: {sym}10</p>
           </Field>
         </Modal>
       )}
 
+      {/* REQUEST MONEY */}
       {modal === "request" && (
-        <Modal title="Request Money" onClose={closeModal} onSubmit={handleRequest} loading={modalLoading} submitLabel="Send Request" success={modalSuccess}>
-          {modalError && <p className="text-error font-label-sm mb-sm">{modalError}</p>}
+        <Modal title="Request Money" onClose={closeModal} onSubmit={handleRequest} loading={modalLoading} submitLabel="Send Request">
+          {modalError && <p className="text-error text-xs font-semibold">{modalError}</p>}
           <Field label="Request From (Email)">
             <input className={inputCls} type="email" placeholder="contact@email.com"
               value={requestForm.recipientEmail} onChange={e => setRequestForm(p => ({ ...p, recipientEmail: e.target.value }))} />
@@ -510,26 +676,36 @@ export default function DashboardPage() {
         </Modal>
       )}
 
+      {/* PAY BILL */}
       {modal === "bill" && (
-        <Modal title="Pay Bill" onClose={closeModal} onSubmit={handleBill} loading={modalLoading} submitLabel="Pay Now" success={modalSuccess}>
-          {modalError && <p className="text-error font-label-sm mb-sm">{modalError}</p>}
-          <Field label="Bill Type">
-            <select className={inputCls} value={billForm.billType} onChange={e => setBillForm(p => ({ ...p, billType: e.target.value }))}>
-              <option value="">Select bill type</option>
-              {["Electricity","Water","Internet","Mobile / Phone","Gas","Rent","Subscription","Insurance","Shopping"].map(b => (
-                <option key={b} value={b}>{b}</option>
-              ))}
-            </select>
-          </Field>
-          <Field label={`Amount (${sym})`}>
-            <input className={inputCls} type="number" placeholder="0.00"
-              value={billForm.amount} onChange={e => setBillForm(p => ({ ...p, amount: e.target.value }))} />
-            <p className="font-label-sm text-on-surface-variant mt-xs">Available: {fmt(userData.balance, sym)}</p>
-          </Field>
-          <Field label="Reference (optional)">
-            <input className={inputCls} placeholder="Account or reference number"
-              value={billForm.ref} onChange={e => setBillForm(p => ({ ...p, ref: e.target.value }))} />
-          </Field>
+        <Modal title="Pay Bill" onClose={closeModal}
+          onSubmit={modalStep === 1 ? () => { if (!validateBill()) return; setPendingTxn(() => executeBill); setModalStep(2); } : handlePinVerify}
+          loading={modalLoading}
+          submitLabel={modalStep === 1 ? "Continue →" : "Confirm & Pay"}>
+          {modalStep === 1 ? (
+            <div className="space-y-4">
+              {modalError && <p className="text-error text-xs font-semibold">{modalError}</p>}
+              <Field label="Bill Type">
+                <select className={inputCls} value={billForm.billType} onChange={e => setBillForm(p => ({ ...p, billType: e.target.value }))}>
+                  <option value="">Select bill type</option>
+                  {["Electricity","Water","Internet","Mobile / Phone","Gas","Rent","Subscription","Insurance","Shopping"].map(b => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label={`Amount (${sym})`}>
+                <input className={inputCls} type="number" placeholder="0.00"
+                  value={billForm.amount} onChange={e => setBillForm(p => ({ ...p, amount: e.target.value }))} />
+                <p className="text-xs text-on-surface-variant mt-1">Available: {fmt(userData.balance, sym)}</p>
+              </Field>
+              <Field label="Reference (optional)">
+                <input className={inputCls} placeholder="Account or reference number"
+                  value={billForm.ref} onChange={e => setBillForm(p => ({ ...p, ref: e.target.value }))} />
+              </Field>
+            </div>
+          ) : (
+            <PinStep onBack={() => { setModalStep(1); setModalError(""); setPinInput(""); }} />
+          )}
         </Modal>
       )}
     </div>

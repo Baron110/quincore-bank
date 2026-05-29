@@ -9,6 +9,7 @@ import TransactionsPage from "./pages/TransactionsPage";
 import VirtualCardPage  from "./pages/VirtualCardPage";
 import AnalyticsPage    from "./pages/AnalyticsPage";
 import ProfilePage      from "./pages/ProfilePage";
+import ReceiptPage      from "./pages/ReceiptPage";
 
 // Protected: redirects to /login if not authenticated
 function Protected({ children }) {
@@ -45,6 +46,7 @@ export default function App() {
         <Route path="/virtual-card" element={<Protected><VirtualCardPage /></Protected>} />
         <Route path="/analytics"    element={<Protected><AnalyticsPage /></Protected>} />
         <Route path="/profile"      element={<Protected><ProfilePage /></Protected>} />
+        <Route path="/receipt"      element={<Protected><ReceiptPage /></Protected>} />
         <Route path="*"             element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>

@@ -130,132 +130,131 @@ export default function SignupPage() {
 
   const depositVal = form.customDeposit ? parseFloat(form.customDeposit) || 0 : form.initialDeposit;
 
+  const inputCls = (field) =>
+    `w-full px-3 py-3 rounded-lg border ${fieldErrors[field] ? "border-error" : "border-outline-variant"} font-body-sm focus:outline-none focus:border-primary transition-colors bg-white text-sm`;
+
   const stepContent = [
     // Step 0 – Personal
-    <div className="space-y-md" key="s0">
-      <div className="grid grid-cols-2 gap-md">
+    <div className="space-y-4" key="s0">
+      <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="font-label-md text-label-md text-primary block mb-xs">First Name</label>
-          <input className={`w-full px-md py-sm rounded-lg border ${fieldErrors.firstName ? "border-error" : "border-outline-variant"} font-body-sm focus:outline-none focus:border-primary`}
-            value={form.firstName} onChange={set("firstName")} placeholder="John" />
-          {fieldErrors.firstName && <p className="text-error text-label-sm mt-xs">{fieldErrors.firstName}</p>}
+          <label className="font-label-md text-label-md text-primary block mb-1 text-xs font-semibold">First Name</label>
+          <input className={inputCls("firstName")} value={form.firstName} onChange={set("firstName")} placeholder="John" />
+          {fieldErrors.firstName && <p className="text-error text-xs mt-1">{fieldErrors.firstName}</p>}
         </div>
         <div>
-          <label className="font-label-md text-label-md text-primary block mb-xs">Last Name</label>
-          <input className={`w-full px-md py-sm rounded-lg border ${fieldErrors.lastName ? "border-error" : "border-outline-variant"} font-body-sm focus:outline-none focus:border-primary`}
-            value={form.lastName} onChange={set("lastName")} placeholder="Doe" />
-          {fieldErrors.lastName && <p className="text-error text-label-sm mt-xs">{fieldErrors.lastName}</p>}
+          <label className="font-label-md text-label-md text-primary block mb-1 text-xs font-semibold">Last Name</label>
+          <input className={inputCls("lastName")} value={form.lastName} onChange={set("lastName")} placeholder="Doe" />
+          {fieldErrors.lastName && <p className="text-error text-xs mt-1">{fieldErrors.lastName}</p>}
         </div>
       </div>
       <div>
-        <label className="font-label-md text-label-md text-primary block mb-xs">Email Address</label>
-        <input className={`w-full px-md py-sm rounded-lg border ${fieldErrors.email ? "border-error" : "border-outline-variant"} font-body-sm focus:outline-none focus:border-primary`}
-          type="email" value={form.email} onChange={set("email")} placeholder="john@example.com" />
-        {fieldErrors.email && <p className="text-error text-label-sm mt-xs">{fieldErrors.email}</p>}
+        <label className="font-label-md text-label-md text-primary block mb-1 text-xs font-semibold">Email Address</label>
+        <input className={inputCls("email")} type="email" value={form.email} onChange={set("email")} placeholder="john@example.com" />
+        {fieldErrors.email && <p className="text-error text-xs mt-1">{fieldErrors.email}</p>}
       </div>
       <div>
-        <label className="font-label-md text-label-md text-primary block mb-xs">Date of Birth</label>
-        <input className={`w-full px-md py-sm rounded-lg border ${fieldErrors.dateOfBirth ? "border-error" : "border-outline-variant"} font-body-sm focus:outline-none focus:border-primary`}
-          type="date" value={form.dateOfBirth} onChange={set("dateOfBirth")} />
+        <label className="font-label-md text-label-md text-primary block mb-1 text-xs font-semibold">Date of Birth</label>
+        <input
+          className={`w-full px-3 py-3 rounded-lg border ${fieldErrors.dateOfBirth ? "border-error" : "border-outline-variant"} focus:outline-none focus:border-primary transition-colors bg-white text-sm`}
+          type="date" value={form.dateOfBirth} onChange={set("dateOfBirth")}
+          style={{ colorScheme: "light" }}
+        />
         {fieldErrors.dateOfBirth
-          ? <p className="text-error text-label-sm mt-xs">{fieldErrors.dateOfBirth}</p>
-          : <p className="font-label-sm text-on-surface-variant mt-xs">Must be 18 or older</p>}
+          ? <p className="text-error text-xs mt-1">{fieldErrors.dateOfBirth}</p>
+          : <p className="text-xs text-on-surface-variant mt-1">Must be 18 or older</p>}
       </div>
     </div>,
 
     // Step 1 – Contact
-    <div className="space-y-md" key="s1">
+    <div className="space-y-4" key="s1">
       <div>
-        <label className="font-label-md text-label-md text-primary block mb-xs">Phone Number</label>
-        <input className={`w-full px-md py-sm rounded-lg border ${fieldErrors.phone ? "border-error" : "border-outline-variant"} font-body-sm focus:outline-none focus:border-primary`}
-          value={form.phone} onChange={set("phone")} placeholder="+1 (555) 000-0000" />
-        {fieldErrors.phone && <p className="text-error text-label-sm mt-xs">{fieldErrors.phone}</p>}
+        <label className="font-label-md text-label-md text-primary block mb-1 text-xs font-semibold">Phone Number</label>
+        <input className={inputCls("phone")} value={form.phone} onChange={set("phone")} placeholder="+1 (555) 000-0000" />
+        {fieldErrors.phone && <p className="text-error text-xs mt-1">{fieldErrors.phone}</p>}
       </div>
       <div>
-        <label className="font-label-md text-label-md text-primary block mb-xs">Street Address</label>
-        <input className={`w-full px-md py-sm rounded-lg border ${fieldErrors.address ? "border-error" : "border-outline-variant"} font-body-sm focus:outline-none focus:border-primary`}
-          value={form.address} onChange={set("address")} placeholder="123 Main Street" />
-        {fieldErrors.address && <p className="text-error text-label-sm mt-xs">{fieldErrors.address}</p>}
+        <label className="font-label-md text-label-md text-primary block mb-1 text-xs font-semibold">Street Address</label>
+        <input className={inputCls("address")} value={form.address} onChange={set("address")} placeholder="123 Main Street" />
+        {fieldErrors.address && <p className="text-error text-xs mt-1">{fieldErrors.address}</p>}
       </div>
-      <div className="grid grid-cols-2 gap-md">
+      <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="font-label-md text-label-md text-primary block mb-xs">City</label>
-          <input className={`w-full px-md py-sm rounded-lg border ${fieldErrors.city ? "border-error" : "border-outline-variant"} font-body-sm focus:outline-none focus:border-primary`}
-            value={form.city} onChange={set("city")} placeholder="New York" />
-          {fieldErrors.city && <p className="text-error text-label-sm mt-xs">{fieldErrors.city}</p>}
+          <label className="font-label-md text-label-md text-primary block mb-1 text-xs font-semibold">City</label>
+          <input className={inputCls("city")} value={form.city} onChange={set("city")} placeholder="New York" />
+          {fieldErrors.city && <p className="text-error text-xs mt-1">{fieldErrors.city}</p>}
         </div>
         <div>
-          <label className="font-label-md text-label-md text-primary block mb-xs">Country</label>
-          <select className={`w-full px-md py-sm rounded-lg border ${fieldErrors.country ? "border-error" : "border-outline-variant"} font-body-sm focus:outline-none focus:border-primary bg-white`}
+          <label className="font-label-md text-label-md text-primary block mb-1 text-xs font-semibold">Country</label>
+          <select
+            className={`w-full px-3 py-3 rounded-lg border ${fieldErrors.country ? "border-error" : "border-outline-variant"} focus:outline-none focus:border-primary bg-white text-sm`}
             value={form.country} onChange={set("country")}>
-            <option value="">Select country</option>
-            {COUNTRIES.map(c => <option key={c.name} value={c.name}>{c.name} — {c.currency}</option>)}
+            <option value="">Select</option>
+            {COUNTRIES.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
           </select>
-          {fieldErrors.country && <p className="text-error text-label-sm mt-xs">{fieldErrors.country}</p>}
+          {fieldErrors.country && <p className="text-error text-xs mt-1">{fieldErrors.country}</p>}
         </div>
       </div>
       {form.country && (
-        <div className="p-sm bg-secondary-container text-on-secondary-container rounded-lg font-label-sm">
+        <div className="p-3 bg-secondary-container text-on-secondary-container rounded-lg text-xs font-semibold">
           ✓ Account currency: <strong>{form.currency} ({form.currencySymbol})</strong>
         </div>
       )}
     </div>,
 
     // Step 2 – Security
-    <div className="space-y-md" key="s2">
+    <div className="space-y-4" key="s2">
       <div>
-        <label className="font-label-md text-label-md text-primary block mb-xs">Password</label>
+        <label className="font-label-md text-label-md text-primary block mb-1 text-xs font-semibold">Password</label>
         <div className="relative">
-          <input className={`w-full px-md py-sm rounded-lg border ${fieldErrors.password ? "border-error" : "border-outline-variant"} font-body-sm focus:outline-none focus:border-primary pr-12`}
+          <input
+            className={`w-full px-3 py-3 pr-10 rounded-lg border ${fieldErrors.password ? "border-error" : "border-outline-variant"} focus:outline-none focus:border-primary bg-white text-sm`}
             type={showPw ? "text" : "password"} value={form.password} onChange={set("password")} placeholder="Min 8 characters" />
-          <button type="button" onClick={() => setShowPw(v => !v)} className="absolute right-sm top-1/2 -translate-y-1/2 text-on-surface-variant">
-            <span className="material-symbols-outlined text-[20px]">{showPw ? "visibility_off" : "visibility"}</span>
+          <button type="button" onClick={() => setShowPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant">
+            <span className="material-symbols-outlined text-[18px]">{showPw ? "visibility_off" : "visibility"}</span>
           </button>
         </div>
-        {fieldErrors.password && <p className="text-error text-label-sm mt-xs">{fieldErrors.password}</p>}
+        {fieldErrors.password && <p className="text-error text-xs mt-1">{fieldErrors.password}</p>}
         {form.password && (
-          <div className="mt-xs">
-            <div className="w-full bg-surface-container-low h-1.5 rounded-full overflow-hidden">
-              <div className={`h-full rounded-full transition-all ${
-                form.password.length >= 10 ? "bg-green-500 w-full" :
-                form.password.length >= 8  ? "bg-amber-500 w-2/3" : "bg-error w-1/3"
-              }`} />
+          <div className="mt-1">
+            <div className="w-full bg-surface-container-low h-1 rounded-full overflow-hidden">
+              <div className={`h-full rounded-full transition-all ${form.password.length >= 10 ? "bg-green-500 w-full" : form.password.length >= 8 ? "bg-amber-500 w-2/3" : "bg-error w-1/3"}`} />
             </div>
-            <p className="font-label-sm text-on-surface-variant mt-xs">
-              {form.password.length >= 10 ? "Strong" : form.password.length >= 8 ? "Medium" : "Weak"} password
-            </p>
+            <p className="text-xs text-on-surface-variant mt-1">{form.password.length >= 10 ? "Strong" : form.password.length >= 8 ? "Medium" : "Weak"} password</p>
           </div>
         )}
       </div>
       <div>
-        <label className="font-label-md text-label-md text-primary block mb-xs">Confirm Password</label>
-        <input className={`w-full px-md py-sm rounded-lg border ${fieldErrors.confirmPassword ? "border-error" : "border-outline-variant"} font-body-sm focus:outline-none focus:border-primary`}
+        <label className="font-label-md text-label-md text-primary block mb-1 text-xs font-semibold">Confirm Password</label>
+        <input
+          className={`w-full px-3 py-3 rounded-lg border ${fieldErrors.confirmPassword ? "border-error" : "border-outline-variant"} focus:outline-none focus:border-primary bg-white text-sm`}
           type={showPw ? "text" : "password"} value={form.confirmPassword} onChange={set("confirmPassword")} placeholder="Re-enter password" />
-        {fieldErrors.confirmPassword && <p className="text-error text-label-sm mt-xs">{fieldErrors.confirmPassword}</p>}
+        {fieldErrors.confirmPassword && <p className="text-error text-xs mt-1">{fieldErrors.confirmPassword}</p>}
       </div>
       <div>
-        <label className="font-label-md text-label-md text-primary block mb-xs">Transaction PIN (4–6 digits)</label>
+        <label className="font-label-md text-label-md text-primary block mb-1 text-xs font-semibold">Transaction PIN (4–6 digits)</label>
         <div className="relative">
-          <input className={`w-full px-md py-sm rounded-lg border ${fieldErrors.pin ? "border-error" : "border-outline-variant"} font-body-sm focus:outline-none focus:border-primary pr-12`}
+          <input
+            className={`w-full px-3 py-3 pr-10 rounded-lg border ${fieldErrors.pin ? "border-error" : "border-outline-variant"} focus:outline-none focus:border-primary bg-white text-sm`}
             type={showPin ? "text" : "password"} value={form.pin} onChange={set("pin")} maxLength={6} inputMode="numeric" placeholder="e.g. 4821" />
-          <button type="button" onClick={() => setShowPin(v => !v)} className="absolute right-sm top-1/2 -translate-y-1/2 text-on-surface-variant">
-            <span className="material-symbols-outlined text-[20px]">{showPin ? "visibility_off" : "visibility"}</span>
+          <button type="button" onClick={() => setShowPin(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant">
+            <span className="material-symbols-outlined text-[18px]">{showPin ? "visibility_off" : "visibility"}</span>
           </button>
         </div>
         {fieldErrors.pin
-          ? <p className="text-error text-label-sm mt-xs">{fieldErrors.pin}</p>
-          : <p className="font-label-sm text-on-surface-variant mt-xs">Used for card & transaction verification</p>}
+          ? <p className="text-error text-xs mt-1">{fieldErrors.pin}</p>
+          : <p className="text-xs text-on-surface-variant mt-1">Used for card & transaction verification</p>}
       </div>
     </div>,
 
     // Step 3 – Account Setup
-    <div className="space-y-md" key="s3">
-      <p className="font-label-md text-on-surface-variant">Choose your initial deposit ({form.currencySymbol})</p>
-      <div className="flex flex-wrap gap-sm">
+    <div className="space-y-4" key="s3">
+      <p className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Choose your initial deposit ({form.currencySymbol})</p>
+      <div className="flex flex-wrap gap-2">
         {DEPOSIT_OPTS.map(amt => (
           <button key={amt} type="button"
             onClick={() => { setForm(p => ({ ...p, initialDeposit: amt, customDeposit: "" })); setFieldErrors(p => ({ ...p, deposit: "" })); }}
-            className={`px-md py-xs rounded-full font-label-md border transition-all ${
+            className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
               form.initialDeposit === amt && !form.customDeposit
                 ? "bg-primary text-on-primary border-primary"
                 : "bg-surface-container-low text-on-surface-variant border-outline-variant hover:border-primary"
@@ -265,23 +264,24 @@ export default function SignupPage() {
         ))}
       </div>
       <div>
-        <label className="font-label-md text-label-md text-primary block mb-xs">Or enter a custom amount</label>
-        <input className={`w-full px-md py-sm rounded-lg border ${fieldErrors.deposit ? "border-error" : "border-outline-variant"} font-body-sm focus:outline-none focus:border-primary`}
+        <label className="font-label-md text-label-md text-primary block mb-1 text-xs font-semibold">Or enter a custom amount</label>
+        <input
+          className={`w-full px-3 py-3 rounded-lg border ${fieldErrors.deposit ? "border-error" : "border-outline-variant"} focus:outline-none focus:border-primary bg-white text-sm`}
           type="number" value={form.customDeposit} onChange={set("customDeposit")} placeholder="Minimum 100" />
-        {fieldErrors.deposit && <p className="text-error text-label-sm mt-xs">{fieldErrors.deposit}</p>}
+        {fieldErrors.deposit && <p className="text-error text-xs mt-1">{fieldErrors.deposit}</p>}
       </div>
       {depositVal >= 100 && (
-        <div className="bg-surface-container-low border border-outline-variant rounded-xl p-md space-y-sm">
-          <p className="font-label-md text-primary">Account Preview</p>
+        <div className="bg-surface-container-low border border-outline-variant rounded-xl p-3 space-y-2">
+          <p className="text-xs font-bold text-primary uppercase tracking-wider">Account Preview</p>
           {[
-            ["Name",             `${form.firstName} ${form.lastName}`],
-            ["Currency",         `${form.currency} (${form.currencySymbol})`],
-            ["Opening balance",  `${form.currencySymbol}${depositVal.toLocaleString()}`],
-            ["Account tier",     getAccountType(depositVal)],
+            ["Name",            `${form.firstName} ${form.lastName}`],
+            ["Currency",        `${form.currency} (${form.currencySymbol})`],
+            ["Opening balance", `${form.currencySymbol}${depositVal.toLocaleString()}`],
+            ["Account tier",    getAccountType(depositVal)],
           ].map(([label, val]) => (
             <div key={label} className="flex justify-between">
-              <span className="font-label-sm text-on-surface-variant">{label}</span>
-              <span className="font-label-md text-primary">{val}</span>
+              <span className="text-xs text-on-surface-variant">{label}</span>
+              <span className="text-xs font-bold text-primary">{val}</span>
             </div>
           ))}
         </div>
@@ -290,51 +290,51 @@ export default function SignupPage() {
   ];
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-gutter bg-background">
-      <div className="w-full max-w-lg bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-xl">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+      <div className="w-full max-w-md bg-surface-container-lowest rounded-xl border border-outline-variant p-6 shadow-xl">
         {/* Logo */}
-        <div className="flex items-center gap-sm mb-lg">
-          <span className="material-symbols-outlined text-primary text-[32px]">account_balance</span>
-          <h1 className="font-hanken text-headline-md text-primary">QuinCore Bank</h1>
+        <div className="flex items-center gap-2 mb-5">
+          <span className="material-symbols-outlined text-primary text-[28px]">account_balance</span>
+          <h1 className="font-hanken text-xl font-bold text-primary">QuinCore Bank</h1>
         </div>
 
-        {/* Step indicator */}
-        <div className="flex gap-xs mb-lg">
+        {/* Step progress bar */}
+        <div className="flex gap-1.5 mb-5">
           {STEPS.map((_, i) => (
             <div key={i} className={`h-1 flex-1 rounded-full transition-all ${i <= step ? "bg-primary" : "bg-surface-container-high"}`} />
           ))}
         </div>
 
-        <h2 className="font-hanken text-headline-lg text-primary mb-xs">{STEPS[step]}</h2>
-        <p className="font-label-sm text-on-surface-variant mb-lg">Step {step + 1} of {STEPS.length}</p>
+        <h2 className="font-hanken text-2xl font-bold text-primary mb-0.5">{STEPS[step]}</h2>
+        <p className="text-xs text-on-surface-variant mb-5">Step {step + 1} of {STEPS.length}</p>
 
-        {error && <div className="mb-md p-sm bg-error-container text-on-error-container rounded-lg font-label-md text-label-md">{error}</div>}
+        {error && <div className="mb-4 p-3 bg-error-container text-on-error-container rounded-lg text-xs font-semibold">{error}</div>}
 
         {stepContent[step]}
 
-        <div className="flex gap-md mt-lg">
+        <div className="flex gap-3 mt-5">
           {step > 0 && (
             <button onClick={back} type="button"
-              className="flex-1 border border-outline-variant rounded-lg py-sm font-label-md text-on-surface-variant hover:bg-surface-container-low transition-colors">
+              className="flex-1 border border-outline-variant rounded-lg py-3 text-xs font-bold text-on-surface-variant hover:bg-surface-container-low transition-colors">
               Back
             </button>
           )}
           {step < STEPS.length - 1 ? (
             <button onClick={next} type="button"
-              className="flex-1 bg-primary text-on-primary rounded-lg py-sm font-label-md active:scale-95 transition-transform">
+              className="flex-1 bg-primary text-on-primary rounded-lg py-3 text-xs font-bold active:scale-95 transition-transform">
               Continue →
             </button>
           ) : (
             <button onClick={handleSubmit} disabled={loading} type="button"
-              className="flex-1 bg-primary text-on-primary rounded-lg py-sm font-label-md active:scale-95 transition-transform disabled:opacity-60 flex items-center justify-center gap-sm">
+              className="flex-1 bg-primary text-on-primary rounded-lg py-3 text-xs font-bold active:scale-95 transition-transform disabled:opacity-60 flex items-center justify-center gap-2">
               {loading
-                ? <><span className="material-symbols-outlined text-[18px] animate-spin">sync</span> Creating account…</>
+                ? <><span className="material-symbols-outlined text-[16px] animate-spin">sync</span> Creating…</>
                 : "Create Account 🎉"}
             </button>
           )}
         </div>
 
-        <div className="mt-md text-center font-label-sm text-on-surface-variant">
+        <div className="mt-4 text-center text-xs text-on-surface-variant">
           Already have an account?{" "}
           <Link to="/login" className="text-primary font-bold hover:underline">Sign In</Link>
         </div>
