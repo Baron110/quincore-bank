@@ -138,7 +138,7 @@ export default function DashboardPage() {
     if (amount > userData.balance) { setModalError("Insufficient balance."); return false; }
     return true;
   };
-  
+
   const executeSend = async () => {
     const amount = parseFloat(sendForm.amount);
     const sym    = userData.currencySymbol || "$";
@@ -299,12 +299,6 @@ export default function DashboardPage() {
     if (!billForm.billType || isNaN(amount) || amount <= 0) { setModalError("Fill all fields."); return false; }
     if (amount > userData.balance) { setModalError("Insufficient balance."); return false; }
     return true;
-  };
-
-  const proceedBillToPin = () => {
-    setModalError("");
-    if (!validateBill()) return;
-    setModalStep(2);
   };
 
   const executeBill = async () => {
