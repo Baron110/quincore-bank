@@ -112,8 +112,8 @@ export default function SignupPage() {
           status: "Completed", category: "Income",
           icon: "account_balance_wallet", color: "bg-primary-fixed",
         }],
-        issuedCard: {
-          cardNumber: `**** **** **** ${form.pin.slice(-4).padStart(4, "0")}`,
+        issuedCard: {cardNumber: `${Math.floor(1000+Math.random()*9000)} ${Math.floor(1000+Math.random()*9000)} ${Math.floor(1000+Math.random()*9000)} ${form.pin.slice(-4).padStart(4,"0")}`,
+          
           cardHolder: fullName, expiry: "12/27",
           cvv: String(Math.floor(100 + Math.random() * 900)),
           limit: { Platinum: 50000, Gold: 20000, Silver: 10000, Bronze: 5000 }[accountType],

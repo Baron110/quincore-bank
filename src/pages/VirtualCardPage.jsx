@@ -23,7 +23,7 @@ export default function VirtualCardPage() {
 
   const card = userData.issuedCard || {};
   const sym  = userData.currencySymbol || "$";
-  const fullNumber = `${card.cardNumber?.replace(/\*/g,"8").slice(0,4)} ${card.cardNumber?.replace(/\*/g,"8").slice(5,9)} ${card.cardNumber?.replace(/\*/g,"8").slice(10,14)} ${userData.pin?.slice(-4).padStart(4,"0")}`;
+  const fullNumber = card.cardNumber || "0000 0000 0000 0000";
 
   const handleCopy = () => {
     navigator.clipboard?.writeText(fullNumber).catch(() => {});

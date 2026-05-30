@@ -18,29 +18,23 @@ export default function ReceiptPage() {
     symbol: "$",
   };
 
-  const handleDownload = () => {
-    const content = `
-QuinCore Bank — Transaction Receipt
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Transaction ID : ${receipt.transactionId}
-Date & Time    : ${receipt.date} · ${receipt.time}
-Type           : ${receipt.type}
-Amount         : ${receipt.symbol}${receipt.amount}
-Recipient      : ${receipt.recipientName}
-${receipt.recipientEmail ? `Email          : ${receipt.recipientEmail}` : ""}
-New Balance    : ${receipt.symbol}${receipt.newBalance}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-QuinCore Bank — Premium Digital Banking
-    `.trim();
+const handleDownload = async () => {
+  const { default: html2canvas } = await import("html2canvas");
+  const { default: jsPDF } = await import("jspdf");
 
-    const blob = new Blob([content], { type: "text/plain" });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement("a");
-    a.href = url;
-    a.download = `QuinCore_Receipt_${receipt.transactionId}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const element = document.getElementById("receipt-card");
+  const canvas = await html2canvas(element, { scale: 2, useCORS: true });
+  const imgData = canvas.toDataURL("image/png");
+
+  const pdf = new jsPDF({
+    orientation: "portrait",
+    unit: "px",
+    format: [canvas.width / 2, canvas.height / 2],
+  });
+
+  pdf.addImage(imgData, "PNG", 0, 0, canvas.width / 2, canvas.height / 2);
+  pdf.save(`QuinCore_Receipt_${receipt.transactionId}.pdf`);
+};
 
   return (
     <div className="bg-background min-h-screen">
@@ -58,7 +52,7 @@ QuinCore Bank — Premium Digital Banking
 
       {/* Receipt Card */}
       <main className="flex items-center justify-center min-h-[calc(100vh-140px)] px-4 py-8 pb-24 md:pb-8">
-        <div className="w-full max-w-[480px] bg-surface-container-lowest rounded-xl border border-outline-variant shadow-lg overflow-hidden">
+       <div id="receipt-card" className="w-full max-w-[480px] bg-surface-container-lowest...">
 
           {/* Green success header */}
           <div className="bg-primary text-on-primary px-lg py-xl flex flex-col items-center text-center">
