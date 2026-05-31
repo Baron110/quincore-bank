@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebaseConfig";
 import { generateAccountNumber, getAccountType } from "../utils";
 
@@ -20,7 +20,7 @@ const COUNTRIES = [
 ];
 
 const DEPOSIT_OPTS = [500, 1000, 2500, 5000, 10000, 25000];
-const STEPS = ["Personal Info", "Contact & Address", "Security", "Account Setup"];
+const STEPS = ["Invite Code", "Personal Info", "Contact & Address", "Security", "Account Setup"];
 
 export default function SignupPage() {
   const navigate = useNavigate();
@@ -30,6 +30,9 @@ export default function SignupPage() {
   const [showPw, setShowPw] = useState(false);
   const [showPin, setShowPin] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [inviteCode, setInviteCode] = useState("");
+  const [codeVerified, setCodeVerified] = useState(false);
+  const [verifying, setVerifying] = useState(false);
 
   const [form, setForm] = useState({
     firstName: "", lastName: "", email: "", dateOfBirth: "",
@@ -52,9 +55,24 @@ export default function SignupPage() {
     setFieldErrors(prev => ({ ...prev, [field]: "" }));
   };
 
+  // Verify invite code
+  const verifyCode = async () => {
+    if (!inviteCode.trim()) { setError("Please enter your invite code."); return; }
+    setVerifying(true); setError("");
+    try {
+      const codeRef = doc(db, "invite_codes", inviteCode.trim().toUpperCase());
+      const codeSnap = await getDoc(codeRef);
+      if (!codeSnap.exists()) { setError("Invalid invite code. Please check and try again."); return; }
+      if (codeSnap.data().used) { setError("This invite code has already been used."); return; }
+      setCodeVerified(true);
+      setStep(1);
+    } catch (e) { setError("Could not verify code. Please try again."); }
+    finally { setVerifying(false); }
+  };
+
   const validate = () => {
     const errs = {};
-    if (step === 0) {
+    if (step === 1) {
       if (!form.firstName.trim()) errs.firstName = "Required";
       if (!form.lastName.trim())  errs.lastName = "Required";
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = "Invalid email";
@@ -64,18 +82,18 @@ export default function SignupPage() {
         if (age < 18) errs.dateOfBirth = "Must be 18+";
       }
     }
-    if (step === 1) {
+    if (step === 2) {
       if (!form.phone.trim())   errs.phone = "Required";
       if (!form.address.trim()) errs.address = "Required";
       if (!form.city.trim())    errs.city = "Required";
       if (!form.country)        errs.country = "Select a country";
     }
-    if (step === 2) {
+    if (step === 3) {
       if (form.password.length < 8) errs.password = "Min 8 characters";
       if (form.password !== form.confirmPassword) errs.confirmPassword = "Passwords don't match";
       if (!/^\d{4,6}$/.test(form.pin)) errs.pin = "4–6 digits only";
     }
-    if (step === 3) {
+    if (step === 4) {
       const d = form.customDeposit ? parseFloat(form.customDeposit) : form.initialDeposit;
       if (isNaN(d) || d < 100) errs.deposit = "Minimum deposit is 100";
     }
@@ -103,6 +121,7 @@ export default function SignupPage() {
         address: `${form.address.trim()}, ${form.city.trim()}`,
         country: form.country, currency: form.currency, currencySymbol: form.currencySymbol,
         accountNumber, balance: deposit, pin: form.pin, accountType,
+        inviteCode: inviteCode.trim().toUpperCase(),
         createdAt: serverTimestamp(),
         transactions: [{
           id: `TXN${Date.now()}`, type: "deposit", amount: deposit,
@@ -112,14 +131,22 @@ export default function SignupPage() {
           status: "Completed", category: "Income",
           icon: "account_balance_wallet", color: "bg-primary-fixed",
         }],
-        issuedCard: {cardNumber: `${Math.floor(1000+Math.random()*9000)} ${Math.floor(1000+Math.random()*9000)} ${Math.floor(1000+Math.random()*9000)} ${form.pin.slice(-4).padStart(4,"0")}`,
-          
+        issuedCard: {
+          cardNumber: `${Math.floor(1000+Math.random()*9000)} ${Math.floor(1000+Math.random()*9000)} ${Math.floor(1000+Math.random()*9000)} ${form.pin.slice(-4).padStart(4,"0")}`,
           cardHolder: fullName, expiry: "12/27",
           cvv: String(Math.floor(100 + Math.random() * 900)),
           limit: { Platinum: 50000, Gold: 20000, Silver: 10000, Bronze: 5000 }[accountType],
           network: "Mastercard",
         },
       });
+
+      // Mark invite code as used
+      await updateDoc(doc(db, "invite_codes", inviteCode.trim().toUpperCase()), {
+        used: true,
+        usedBy: form.email.toLowerCase().trim(),
+        usedAt: new Date().toISOString(),
+      });
+
       navigate("/dashboard");
     } catch (err) {
       setError(err.code === "auth/email-already-in-use"
@@ -129,32 +156,58 @@ export default function SignupPage() {
   };
 
   const depositVal = form.customDeposit ? parseFloat(form.customDeposit) || 0 : form.initialDeposit;
-
   const inputCls = (field) =>
     `w-full px-3 py-3 rounded-lg border ${fieldErrors[field] ? "border-error" : "border-outline-variant"} font-body-sm focus:outline-none focus:border-primary transition-colors bg-white text-sm`;
 
   const stepContent = [
-    // Step 0 – Personal
+    // Step 0 — Invite Code
     <div className="space-y-4" key="s0">
+      <div className="text-center py-4">
+        <div className="w-16 h-16 bg-primary-fixed rounded-full flex items-center justify-center mx-auto mb-4">
+          <span className="material-symbols-outlined text-primary text-[32px]">vpn_key</span>
+        </div>
+        <p className="text-sm text-on-surface-variant">Enter your exclusive QuinCore invite code to get started</p>
+      </div>
+      <div>
+        <label className="text-xs font-bold text-primary block mb-1 uppercase tracking-wider">Invite Code</label>
+        <input
+          className="w-full px-3 py-3 rounded-lg border border-outline-variant focus:outline-none focus:border-primary bg-white text-sm text-center tracking-widest font-bold uppercase"
+          placeholder="QCB-XXXXXXXXXX"
+          value={inviteCode}
+          onChange={e => { setInviteCode(e.target.value.toUpperCase()); setError(""); }}
+          maxLength={14}
+        />
+        {error && <p className="text-error text-xs mt-1 text-center">{error}</p>}
+      </div>
+      <button onClick={verifyCode} disabled={verifying}
+        className="w-full bg-primary text-on-primary rounded-lg py-3 text-xs font-bold active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2">
+        {verifying
+          ? <><span className="material-symbols-outlined text-[16px] animate-spin">sync</span> Verifying…</>
+          : "Verify Code →"}
+      </button>
+    </div>,
+
+    // Step 1 — Personal Info
+    <div className="space-y-4" key="s1">
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="font-label-md text-label-md text-primary block mb-1 text-xs font-semibold">First Name</label>
+          <label className="text-xs font-semibold text-primary block mb-1">First Name</label>
           <input className={inputCls("firstName")} value={form.firstName} onChange={set("firstName")} placeholder="John" />
           {fieldErrors.firstName && <p className="text-error text-xs mt-1">{fieldErrors.firstName}</p>}
         </div>
         <div>
-          <label className="font-label-md text-label-md text-primary block mb-1 text-xs font-semibold">Last Name</label>
+          <label className="text-xs font-semibold text-primary block mb-1">Last Name</label>
           <input className={inputCls("lastName")} value={form.lastName} onChange={set("lastName")} placeholder="Doe" />
           {fieldErrors.lastName && <p className="text-error text-xs mt-1">{fieldErrors.lastName}</p>}
         </div>
       </div>
       <div>
-        <label className="font-label-md text-label-md text-primary block mb-1 text-xs font-semibold">Email Address</label>
+        <label className="text-xs font-semibold text-primary block mb-1">Email Address</label>
         <input className={inputCls("email")} type="email" value={form.email} onChange={set("email")} placeholder="john@example.com" />
         {fieldErrors.email && <p className="text-error text-xs mt-1">{fieldErrors.email}</p>}
       </div>
       <div>
-        <label className="font-label-md text-label-md text-primary block mb-1 text-xs font-semibold">Date of Birth</label>
+        <label className="text-xs font-semibold text-primary block mb-1">Date of Birth</label>
         <input
           className={`w-full px-3 py-3 rounded-lg border ${fieldErrors.dateOfBirth ? "border-error" : "border-outline-variant"} focus:outline-none focus:border-primary bg-white text-sm box-border`}
           type="date" value={form.dateOfBirth} onChange={set("dateOfBirth")}
@@ -166,26 +219,26 @@ export default function SignupPage() {
       </div>
     </div>,
 
-    // Step 1 – Contact
-    <div className="space-y-4" key="s1">
+    // Step 2 — Contact
+    <div className="space-y-4" key="s2">
       <div>
-        <label className="font-label-md text-label-md text-primary block mb-1 text-xs font-semibold">Phone Number</label>
+        <label className="text-xs font-semibold text-primary block mb-1">Phone Number</label>
         <input className={inputCls("phone")} value={form.phone} onChange={set("phone")} placeholder="+1 (555) 000-0000" />
         {fieldErrors.phone && <p className="text-error text-xs mt-1">{fieldErrors.phone}</p>}
       </div>
       <div>
-        <label className="font-label-md text-label-md text-primary block mb-1 text-xs font-semibold">Street Address</label>
+        <label className="text-xs font-semibold text-primary block mb-1">Street Address</label>
         <input className={inputCls("address")} value={form.address} onChange={set("address")} placeholder="123 Main Street" />
         {fieldErrors.address && <p className="text-error text-xs mt-1">{fieldErrors.address}</p>}
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="font-label-md text-label-md text-primary block mb-1 text-xs font-semibold">City</label>
+          <label className="text-xs font-semibold text-primary block mb-1">City</label>
           <input className={inputCls("city")} value={form.city} onChange={set("city")} placeholder="New York" />
           {fieldErrors.city && <p className="text-error text-xs mt-1">{fieldErrors.city}</p>}
         </div>
         <div>
-          <label className="font-label-md text-label-md text-primary block mb-1 text-xs font-semibold">Country</label>
+          <label className="text-xs font-semibold text-primary block mb-1">Country</label>
           <select
             className={`w-full px-3 py-3 rounded-lg border ${fieldErrors.country ? "border-error" : "border-outline-variant"} focus:outline-none focus:border-primary bg-white text-sm`}
             value={form.country} onChange={set("country")}>
@@ -197,15 +250,15 @@ export default function SignupPage() {
       </div>
       {form.country && (
         <div className="p-3 bg-secondary-container text-on-secondary-container rounded-lg text-xs font-semibold">
-          ✓ Account currency: <strong>{form.currency} ({form.currencySymbol})</strong>
+          ✓ Currency: <strong>{form.currency} ({form.currencySymbol})</strong>
         </div>
       )}
     </div>,
 
-    // Step 2 – Security
-    <div className="space-y-4" key="s2">
+    // Step 3 — Security
+    <div className="space-y-4" key="s3">
       <div>
-        <label className="font-label-md text-label-md text-primary block mb-1 text-xs font-semibold">Password</label>
+        <label className="text-xs font-semibold text-primary block mb-1">Password</label>
         <div className="relative">
           <input
             className={`w-full px-3 py-3 pr-10 rounded-lg border ${fieldErrors.password ? "border-error" : "border-outline-variant"} focus:outline-none focus:border-primary bg-white text-sm`}
@@ -225,14 +278,14 @@ export default function SignupPage() {
         )}
       </div>
       <div>
-        <label className="font-label-md text-label-md text-primary block mb-1 text-xs font-semibold">Confirm Password</label>
+        <label className="text-xs font-semibold text-primary block mb-1">Confirm Password</label>
         <input
           className={`w-full px-3 py-3 rounded-lg border ${fieldErrors.confirmPassword ? "border-error" : "border-outline-variant"} focus:outline-none focus:border-primary bg-white text-sm`}
           type={showPw ? "text" : "password"} value={form.confirmPassword} onChange={set("confirmPassword")} placeholder="Re-enter password" />
         {fieldErrors.confirmPassword && <p className="text-error text-xs mt-1">{fieldErrors.confirmPassword}</p>}
       </div>
       <div>
-        <label className="font-label-md text-label-md text-primary block mb-1 text-xs font-semibold">Transaction PIN (4–6 digits)</label>
+        <label className="text-xs font-semibold text-primary block mb-1">Transaction PIN (4–6 digits)</label>
         <div className="relative">
           <input
             className={`w-full px-3 py-3 pr-10 rounded-lg border ${fieldErrors.pin ? "border-error" : "border-outline-variant"} focus:outline-none focus:border-primary bg-white text-sm`}
@@ -241,30 +294,24 @@ export default function SignupPage() {
             <span className="material-symbols-outlined text-[18px]">{showPin ? "visibility_off" : "visibility"}</span>
           </button>
         </div>
-        {fieldErrors.pin
-          ? <p className="text-error text-xs mt-1">{fieldErrors.pin}</p>
-          : <p className="text-xs text-on-surface-variant mt-1">Used for card & transaction verification</p>}
+        {fieldErrors.pin ? <p className="text-error text-xs mt-1">{fieldErrors.pin}</p> : <p className="text-xs text-on-surface-variant mt-1">Used for card & transaction verification</p>}
       </div>
     </div>,
 
-    // Step 3 – Account Setup
-    <div className="space-y-4" key="s3">
+    // Step 4 — Account Setup
+    <div className="space-y-4" key="s4">
       <p className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Choose your initial deposit ({form.currencySymbol})</p>
       <div className="flex flex-wrap gap-2">
         {DEPOSIT_OPTS.map(amt => (
           <button key={amt} type="button"
             onClick={() => { setForm(p => ({ ...p, initialDeposit: amt, customDeposit: "" })); setFieldErrors(p => ({ ...p, deposit: "" })); }}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
-              form.initialDeposit === amt && !form.customDeposit
-                ? "bg-primary text-on-primary border-primary"
-                : "bg-surface-container-low text-on-surface-variant border-outline-variant hover:border-primary"
-            }`}>
+            className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${form.initialDeposit === amt && !form.customDeposit ? "bg-primary text-on-primary border-primary" : "bg-surface-container-low text-on-surface-variant border-outline-variant hover:border-primary"}`}>
             {form.currencySymbol}{amt.toLocaleString()}
           </button>
         ))}
       </div>
       <div>
-        <label className="font-label-md text-label-md text-primary block mb-1 text-xs font-semibold">Or enter a custom amount</label>
+        <label className="text-xs font-semibold text-primary block mb-1">Or enter a custom amount</label>
         <input
           className={`w-full px-3 py-3 rounded-lg border ${fieldErrors.deposit ? "border-error" : "border-outline-variant"} focus:outline-none focus:border-primary bg-white text-sm`}
           type="number" value={form.customDeposit} onChange={set("customDeposit")} placeholder="Minimum 100" />
@@ -273,12 +320,7 @@ export default function SignupPage() {
       {depositVal >= 100 && (
         <div className="bg-surface-container-low border border-outline-variant rounded-xl p-3 space-y-2">
           <p className="text-xs font-bold text-primary uppercase tracking-wider">Account Preview</p>
-          {[
-            ["Name",            `${form.firstName} ${form.lastName}`],
-            ["Currency",        `${form.currency} (${form.currencySymbol})`],
-            ["Opening balance", `${form.currencySymbol}${depositVal.toLocaleString()}`],
-            ["Account tier",    getAccountType(depositVal)],
-          ].map(([label, val]) => (
+          {[["Name",`${form.firstName} ${form.lastName}`],["Currency",`${form.currency} (${form.currencySymbol})`],["Opening balance",`${form.currencySymbol}${depositVal.toLocaleString()}`],["Account tier",getAccountType(depositVal)],["Invite Code",inviteCode]].map(([label, val]) => (
             <div key={label} className="flex justify-between">
               <span className="text-xs text-on-surface-variant">{label}</span>
               <span className="text-xs font-bold text-primary">{val}</span>
@@ -292,13 +334,12 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
       <div className="w-full max-w-md bg-surface-container-lowest rounded-xl border border-outline-variant p-6 shadow-xl">
-        {/* Logo */}
         <div className="flex items-center gap-2 mb-5">
           <span className="material-symbols-outlined text-primary text-[28px]">account_balance</span>
           <h1 className="font-hanken text-xl font-bold text-primary">QuinCore Bank</h1>
         </div>
 
-        {/* Step progress bar */}
+        {/* Step progress */}
         <div className="flex gap-1.5 mb-5">
           {STEPS.map((_, i) => (
             <div key={i} className={`h-1 flex-1 rounded-full transition-all ${i <= step ? "bg-primary" : "bg-surface-container-high"}`} />
@@ -308,31 +349,30 @@ export default function SignupPage() {
         <h2 className="font-hanken text-2xl font-bold text-primary mb-0.5">{STEPS[step]}</h2>
         <p className="text-xs text-on-surface-variant mb-5">Step {step + 1} of {STEPS.length}</p>
 
-        {error && <div className="mb-4 p-3 bg-error-container text-on-error-container rounded-lg text-xs font-semibold">{error}</div>}
+        {error && step !== 0 && <div className="mb-4 p-3 bg-error-container text-on-error-container rounded-lg text-xs font-semibold">{error}</div>}
 
         {stepContent[step]}
 
-        <div className="flex gap-3 mt-5">
-          {step > 0 && (
+        {/* Navigation buttons — only show from step 1 onwards */}
+        {step > 0 && (
+          <div className="flex gap-3 mt-5">
             <button onClick={back} type="button"
               className="flex-1 border border-outline-variant rounded-lg py-3 text-xs font-bold text-on-surface-variant hover:bg-surface-container-low transition-colors">
               Back
             </button>
-          )}
-          {step < STEPS.length - 1 ? (
-            <button onClick={next} type="button"
-              className="flex-1 bg-primary text-on-primary rounded-lg py-3 text-xs font-bold active:scale-95 transition-transform">
-              Continue →
-            </button>
-          ) : (
-            <button onClick={handleSubmit} disabled={loading} type="button"
-              className="flex-1 bg-primary text-on-primary rounded-lg py-3 text-xs font-bold active:scale-95 transition-transform disabled:opacity-60 flex items-center justify-center gap-2">
-              {loading
-                ? <><span className="material-symbols-outlined text-[16px] animate-spin">sync</span> Creating…</>
-                : "Create Account 🎉"}
-            </button>
-          )}
-        </div>
+            {step < STEPS.length - 1 ? (
+              <button onClick={next} type="button"
+                className="flex-1 bg-primary text-on-primary rounded-lg py-3 text-xs font-bold active:scale-95 transition-transform">
+                Continue →
+              </button>
+            ) : (
+              <button onClick={handleSubmit} disabled={loading} type="button"
+                className="flex-1 bg-primary text-on-primary rounded-lg py-3 text-xs font-bold active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2">
+                {loading ? <><span className="material-symbols-outlined text-[16px] animate-spin">sync</span> Creating…</> : "Create Account 🎉"}
+              </button>
+            )}
+          </div>
+        )}
 
         <div className="mt-4 text-center text-xs text-on-surface-variant">
           Already have an account?{" "}
