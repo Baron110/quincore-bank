@@ -18,32 +18,30 @@ export default function ReceiptPage() {
     symbol: "$",
   };
 
-const handleDownload = async () => {
-  const { default: html2canvas } = await import("html2canvas");
-  const { default: jsPDF } = await import("jspdf");
+  const handleDownload = async () => {
+    const { default: html2canvas } = await import("html2canvas");
+    const { default: jsPDF } = await import("jspdf");
 
-  const element = document.getElementById("receipt-card");
-  const canvas = await html2canvas(element, { scale: 2, useCORS: true });
-  const imgData = canvas.toDataURL("image/png");
+    const element = document.getElementById("receipt-card");
+    const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+    const imgData = canvas.toDataURL("image/png");
 
-  const pdf = new jsPDF({
-    orientation: "portrait",
-    unit: "px",
-    format: [canvas.width / 2, canvas.height / 2],
-  });
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "px",
+      format: [canvas.width / 2, canvas.height / 2],
+    });
 
-  pdf.addImage(imgData, "PNG", 0, 0, canvas.width / 2, canvas.height / 2);
-  pdf.save(`QuinCore_Receipt_${receipt.transactionId}.pdf`);
-};
+    pdf.addImage(imgData, "PNG", 0, 0, canvas.width / 2, canvas.height / 2);
+    pdf.save(`QuinCore_Receipt_${receipt.transactionId}.pdf`);
+  };
 
   return (
     <div className="bg-background min-h-screen">
       {/* Top bar */}
       <header className="w-full bg-background border-b border-outline-variant">
         <div className="flex justify-between items-center px-gutter py-md w-full max-w-container-max mx-auto">
-          <h1
-            className="font-hanken text-headline-md text-primary cursor-pointer"
-            onClick={() => navigate("/dashboard")}>
+          <h1 className="font-hanken text-headline-md text-primary cursor-pointer" onClick={() => navigate("/dashboard")}>
             QuinCore Bank
           </h1>
           <span className="material-symbols-outlined text-primary">notifications</span>
@@ -52,14 +50,12 @@ const handleDownload = async () => {
 
       {/* Receipt Card */}
       <main className="flex items-center justify-center min-h-[calc(100vh-140px)] px-4 py-8 pb-24 md:pb-8">
-       <div id="receipt-card" className="w-full max-w-[480px] bg-surface-container-lowest...">
+        <div id="receipt-card" className="w-full max-w-[480px] bg-surface-container-lowest rounded-xl border border-outline-variant shadow-lg overflow-hidden">
 
-          {/* Green success header */}
+          {/* Dark header */}
           <div className="bg-primary text-on-primary px-lg py-xl flex flex-col items-center text-center">
             <div className="w-16 h-16 bg-secondary-fixed rounded-full flex items-center justify-center mb-md">
-              <span
-                className="material-symbols-outlined text-primary"
-                style={{ fontSize: 32, fontVariationSettings: "'FILL' 1" }}>
+              <span className="material-symbols-outlined text-primary" style={{ fontSize: 32, fontVariationSettings: "'FILL' 1" }}>
                 check_circle
               </span>
             </div>
@@ -84,17 +80,18 @@ const handleDownload = async () => {
             <div className="grid grid-cols-2 gap-md">
               <div>
                 <p className="font-label-sm text-on-surface-variant mb-xs text-xs">Transaction ID</p>
-                <p className="font-body-md font-semibold text-primary text-sm">{receipt.transactionId}</p>
+                <p className="font-body-md font-semibold text-primary text-sm break-all">{receipt.transactionId}</p>
               </div>
               <div className="text-right">
                 <p className="font-label-sm text-on-surface-variant mb-xs text-xs">Date & Time</p>
-                <p className="font-body-md font-semibold text-primary text-sm">{receipt.date} · {receipt.time}</p>
+                <p className="font-body-md font-semibold text-primary text-sm">{receipt.date}</p>
+                <p className="font-body-md font-semibold text-primary text-xs">{receipt.time}</p>
               </div>
             </div>
 
             <div className="h-px bg-outline-variant w-full" />
 
-            {/* Recipient / Details */}
+            {/* Recipient */}
             <div className="space-y-md">
               <p className="font-label-sm text-on-surface-variant uppercase tracking-tight text-xs">
                 {receipt.type === "deposit" ? "Deposit Details" : receipt.type === "bill" ? "Bill Details" : "Recipient Details"}
@@ -114,7 +111,7 @@ const handleDownload = async () => {
               </div>
             </div>
 
-            {/* Summary row */}
+            {/* Summary */}
             <div className="bg-surface-container-low rounded-xl p-md space-y-2">
               {[
                 ["Amount",      `${receipt.symbol}${receipt.amount}`],
