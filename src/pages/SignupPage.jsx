@@ -156,7 +156,7 @@ export default function SignupPage() {
       <div>
         <label className="font-label-md text-label-md text-primary block mb-1 text-xs font-semibold">Date of Birth</label>
         <input
-          className={`w-full px-3 py-3 rounded-lg border ${fieldErrors.dateOfBirth ? "border-error" : "border-outline-variant"} focus:outline-none focus:border-primary transition-colors bg-white text-sm`}
+          className={`w-full px-3 py-3 rounded-lg border ${fieldErrors.dateOfBirth ? "border-error" : "border-outline-variant"} focus:outline-none focus:border-primary bg-white text-sm box-border`}
           type="date" value={form.dateOfBirth} onChange={set("dateOfBirth")}
           style={{ colorScheme: "light" }}
         />
