@@ -139,6 +139,12 @@ export default function DashboardPage() {
     return true;
   };
 
+  const proceedToPin = () => {
+    setModalError("");
+    if (!validateSend()) return;
+    setModalStep(2);
+  };
+
   const executeSend = async () => {
     const amount = parseFloat(sendForm.amount);
     const sym    = userData.currencySymbol || "$";
@@ -438,10 +444,9 @@ export default function DashboardPage() {
                   <p className="font-label-md text-on-primary-container text-xs">Available Balance</p>
                   <h2 className="font-hanken font-bold mt-1 text-3xl md:text-5xl break-all leading-tight">{fmt(userData.balance, sym)}</h2>
                 </div>
-                <div className="bg-secondary-fixed text-on-secondary-fixed px-2 py-1 rounded-lg font-label-md flex items-center gap-1 flex-shrink-0 text-xs">
-                  <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>stars</span>
-                  <span className="hidden sm:inline">{userData.accountType?.toUpperCase()} TIER</span>
-                  <span className="sm:hidden">{userData.accountType?.[0]}TIER</span>
+                <div className="bg-secondary-fixed text-on-secondary-fixed px-2 py-1 rounded-lg flex items-center gap-1 flex-shrink-0 text-[10px] font-bold">
+                  <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>stars</span>
+                  {userData.accountType?.toUpperCase()} TIER
                 </div>
               </div>
               <div className="relative z-10 flex justify-between items-end mt-xl">
