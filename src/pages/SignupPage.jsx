@@ -31,7 +31,6 @@ export default function SignupPage() {
   const [showPin, setShowPin] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const [inviteCode, setInviteCode] = useState("");
-  const [codeVerified, setCodeVerified] = useState(false);
   const [verifying, setVerifying] = useState(false);
 
   const [form, setForm] = useState({
@@ -64,7 +63,6 @@ export default function SignupPage() {
       const codeSnap = await getDoc(codeRef);
       if (!codeSnap.exists()) { setError("Invalid invite code. Please check and try again."); return; }
       if (codeSnap.data().used) { setError("This invite code has already been used."); return; }
-      setCodeVerified(true);
       setStep(1);
     } catch (e) { setError("Could not verify code. Please try again."); }
     finally { setVerifying(false); }
