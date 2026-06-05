@@ -145,11 +145,6 @@ export default function DashboardPage() {
     return true;
   };
 
-  const proceedToPin = () => {
-    setModalError("");
-    if (!validateSend()) return;
-    setModalStep(2);
-  };
 
   const executeSend = async () => {
     const amount = parseFloat(sendForm.amount);
