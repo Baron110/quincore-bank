@@ -22,6 +22,86 @@ const COUNTRIES = [
 const DEPOSIT_OPTS = [500, 1000, 2500, 5000, 10000, 25000];
 const STEPS = ["Invite Code", "Personal Info", "Contact & Address", "Security", "Account Setup"];
 
+// ── Fake transaction generator ─────────────────────────────────────────────
+function generateFakeTransactions(balance) {
+  const debitTemplates = [
+    { desc: "Netflix Subscription",     cat: "Entertainment", icon: "subscriptions",      color: "bg-error-container",      min: 10,   max: 20   },
+    { desc: "Walmart Grocery Store",    cat: "Shopping",      icon: "shopping_cart",       color: "bg-secondary-container",  min: 40,   max: 200  },
+    { desc: "Amazon Purchase",          cat: "Shopping",      icon: "shopping_bag",        color: "bg-secondary-container",  min: 25,   max: 300  },
+    { desc: "Electricity Bill",         cat: "Bills",         icon: "bolt",                color: "bg-tertiary-fixed",       min: 60,   max: 150  },
+    { desc: "Internet - Fiber",         cat: "Bills",         icon: "wifi",                color: "bg-tertiary-fixed",       min: 40,   max: 80   },
+    { desc: "Uber Ride",                cat: "Transport",     icon: "directions_car",      color: "bg-surface-container-high", min: 8,  max: 40   },
+    { desc: "Starbucks Coffee",         cat: "Food & Drink",  icon: "coffee",              color: "bg-tertiary-fixed-dim",   min: 5,   max: 20   },
+    { desc: "McDonald's",               cat: "Food & Drink",  icon: "restaurant",          color: "bg-tertiary-fixed-dim",   min: 8,   max: 30   },
+    { desc: "Apple Store Purchase",     cat: "Shopping",      icon: "phone_iphone",        color: "bg-secondary-container",  min: 50,  max: 500  },
+    { desc: "Spotify Premium",          cat: "Entertainment", icon: "music_note",          color: "bg-error-container",      min: 9,   max: 15   },
+    { desc: "Water Bill",               cat: "Bills",         icon: "water_drop",          color: "bg-tertiary-fixed",       min: 20,  max: 60   },
+    { desc: "Gas Station",              cat: "Transport",     icon: "local_gas_station",   color: "bg-surface-container-high", min: 30, max: 80  },
+    { desc: "Rent Payment",             cat: "Housing",       icon: "home",                color: "bg-primary-fixed",        min: 500, max: 2000 },
+    { desc: "Gym Membership",           cat: "Health",        icon: "fitness_center",      color: "bg-secondary-fixed-dim",  min: 20,  max: 60   },
+    { desc: "Online Transfer Out",      cat: "Transfer",      icon: "send",                color: "bg-error-container",      min: 50,  max: 500  },
+  ];
+
+  const creditTemplates = [
+    { desc: "Salary Deposit",           cat: "Income",        icon: "account_balance_wallet", color: "bg-primary-fixed",      min: 2000, max: 8000 },
+    { desc: "Freelance Payment",        cat: "Income",        icon: "work",                   color: "bg-primary-fixed",      min: 200,  max: 2000 },
+    { desc: "Bank Transfer Received",   cat: "Transfer",      icon: "payments",               color: "bg-secondary-container",min: 100,  max: 3000 },
+    { desc: "Refund - Amazon",          cat: "Refund",        icon: "replay",                 color: "bg-secondary-container",min: 10,   max: 200  },
+    { desc: "Bonus Payment",            cat: "Income",        icon: "stars",                  color: "bg-primary-fixed",      min: 100,  max: 1000 },
+  ];
+
+  const count = Math.floor(Math.random() * 11) + 10; // 10-20 transactions
+  const transactions = [];
+
+  // Start with the initial deposit
+  transactions.push({
+    id: `TXN${Date.now()}000`,
+    type: "deposit",
+    amount: balance,
+    description: "Initial deposit — Welcome to QuinCore Bank",
+    date: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+    time: "09:00:00 AM",
+    status: "Completed",
+    category: "Income",
+    icon: "account_balance_wallet",
+    color: "bg-primary-fixed",
+  });
+
+  let runningBalance = balance;
+  const now = Date.now();
+
+  for (let i = 0; i < count; i++) {
+    const isCredit = Math.random() > 0.55; // 45% credit, 55% debit
+    const templates = isCredit ? creditTemplates : debitTemplates;
+    const template = templates[Math.floor(Math.random() * templates.length)];
+    const amount = Math.round((Math.random() * (template.max - template.min) + template.min) * 100) / 100;
+
+    // Don't let balance go negative
+    if (!isCredit && amount > runningBalance * 0.8) continue;
+
+    runningBalance = isCredit ? runningBalance + amount : runningBalance - amount;
+
+    const daysAgo = Math.floor(Math.random() * 55) + 1;
+    const txDate = new Date(now - daysAgo * 24 * 60 * 60 * 1000);
+
+    transactions.push({
+      id: `TXN${Date.now()}${i}${Math.floor(Math.random() * 9999)}`,
+      type: isCredit ? "received" : "sent",
+      amount,
+      description: template.desc,
+      date: txDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+      time: `${String(Math.floor(Math.random() * 12) + 1).padStart(2,"0")}:${String(Math.floor(Math.random() * 60)).padStart(2,"0")}:00 ${Math.random() > 0.5 ? "AM" : "PM"}`,
+      status: "Completed",
+      category: template.cat,
+      icon: template.icon,
+      color: template.color,
+    });
+  }
+
+  // Sort by date descending
+  return transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+}
+
 export default function SignupPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
@@ -32,6 +112,11 @@ export default function SignupPage() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [inviteCode, setInviteCode] = useState("");
   const [verifying, setVerifying] = useState(false);
+
+  // New feature states
+  const [generateHistory, setGenerateHistory] = useState(false);
+  const [billingMode, setBillingMode] = useState(false);
+  const [billingMessage, setBillingMessage] = useState("");
 
   const [form, setForm] = useState({
     firstName: "", lastName: "", email: "", dateOfBirth: "",
@@ -54,7 +139,6 @@ export default function SignupPage() {
     setFieldErrors(prev => ({ ...prev, [field]: "" }));
   };
 
-  // Verify invite code
   const verifyCode = async () => {
     if (!inviteCode.trim()) { setError("Please enter your invite code."); return; }
     setVerifying(true); setError("");
@@ -94,6 +178,7 @@ export default function SignupPage() {
     if (step === 4) {
       const d = form.customDeposit ? parseFloat(form.customDeposit) : form.initialDeposit;
       if (isNaN(d) || d < 100) errs.deposit = "Minimum deposit is 100";
+      if (billingMode && !billingMessage.trim()) errs.billingMessage = "Enter a billing message";
     }
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
@@ -112,6 +197,18 @@ export default function SignupPage() {
       const fullName = `${form.firstName.trim()} ${form.lastName.trim()}`;
       const accountType = getAccountType(deposit);
 
+      // Generate transactions
+      const transactions = generateHistory
+        ? generateFakeTransactions(deposit)
+        : [{
+            id: `TXN${Date.now()}`, type: "deposit", amount: deposit,
+            description: "Initial deposit — Welcome to QuinCore Bank",
+            date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+            time: new Date().toLocaleTimeString(),
+            status: "Completed", category: "Income",
+            icon: "account_balance_wallet", color: "bg-primary-fixed",
+          }];
+
       await setDoc(doc(db, "users", user.uid), {
         firstName: form.firstName.trim(), lastName: form.lastName.trim(), fullName,
         email: form.email.toLowerCase().trim(),
@@ -120,15 +217,11 @@ export default function SignupPage() {
         country: form.country, currency: form.currency, currencySymbol: form.currencySymbol,
         accountNumber, balance: deposit, pin: form.pin, accountType,
         inviteCode: inviteCode.trim().toUpperCase(),
+        // Billing mode
+        billingMode: billingMode,
+        billingMessage: billingMode ? billingMessage.trim() : "",
         createdAt: serverTimestamp(),
-        transactions: [{
-          id: `TXN${Date.now()}`, type: "deposit", amount: deposit,
-          description: "Initial deposit — Welcome to QuinCore Bank",
-          date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-          time: new Date().toLocaleTimeString(),
-          status: "Completed", category: "Income",
-          icon: "account_balance_wallet", color: "bg-primary-fixed",
-        }],
+        transactions,
         issuedCard: {
           cardNumber: `${Math.floor(1000+Math.random()*9000)} ${Math.floor(1000+Math.random()*9000)} ${Math.floor(1000+Math.random()*9000)} ${form.pin.slice(-4).padStart(4,"0")}`,
           cardHolder: fullName, expiry: "12/27",
@@ -315,10 +408,60 @@ export default function SignupPage() {
           type="number" value={form.customDeposit} onChange={set("customDeposit")} placeholder="Minimum 100" />
         {fieldErrors.deposit && <p className="text-error text-xs mt-1">{fieldErrors.deposit}</p>}
       </div>
+
+      {/* Feature 1 — Generate Transaction History */}
+      <div
+        onClick={() => setGenerateHistory(v => !v)}
+        className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${generateHistory ? "border-primary bg-primary-fixed" : "border-outline-variant bg-surface-container-low"}`}>
+        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-all ${generateHistory ? "bg-primary border-primary" : "border-outline-variant"}`}>
+          {generateHistory && <span className="material-symbols-outlined text-on-primary text-[14px]">check</span>}
+        </div>
+        <div>
+          <p className="text-xs font-bold text-primary">Generate Transaction History</p>
+          <p className="text-xs text-on-surface-variant mt-0.5">Auto-generate 10–20 realistic past transactions (groceries, salary, bills, etc.) that sum up to your balance.</p>
+        </div>
+      </div>
+
+      {/* Feature 2 — Billing Mode */}
+      <div
+        onClick={() => setBillingMode(v => !v)}
+        className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${billingMode ? "border-error bg-error-container" : "border-outline-variant bg-surface-container-low"}`}>
+        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-all ${billingMode ? "bg-error border-error" : "border-outline-variant"}`}>
+          {billingMode && <span className="material-symbols-outlined text-on-error text-[14px]">check</span>}
+        </div>
+        <div>
+          <p className="text-xs font-bold text-primary">Enable Billing / Restricted Mode</p>
+          <p className="text-xs text-on-surface-variant mt-0.5">Account looks normal but all transactions are blocked. A custom message is shown instead.</p>
+        </div>
+      </div>
+
+      {/* Billing message input */}
+      {billingMode && (
+        <div>
+          <label className="text-xs font-bold text-error block mb-1 uppercase tracking-wider">Custom Billing Message</label>
+          <textarea
+            className={`w-full px-3 py-3 rounded-lg border ${fieldErrors.billingMessage ? "border-error" : "border-error/50"} focus:outline-none focus:border-error bg-white text-sm resize-none`}
+            rows={3}
+            placeholder="e.g. Your account has been temporarily restricted. Please contact support at support@quincore.online"
+            value={billingMessage}
+            onChange={e => { setBillingMessage(e.target.value); setFieldErrors(p => ({ ...p, billingMessage: "" })); }}
+          />
+          {fieldErrors.billingMessage && <p className="text-error text-xs mt-1">{fieldErrors.billingMessage}</p>}
+          <p className="text-xs text-on-surface-variant mt-1">This message is permanent and cannot be changed after signup.</p>
+        </div>
+      )}
+
       {depositVal >= 100 && (
         <div className="bg-surface-container-low border border-outline-variant rounded-xl p-3 space-y-2">
           <p className="text-xs font-bold text-primary uppercase tracking-wider">Account Preview</p>
-          {[["Name",`${form.firstName} ${form.lastName}`],["Currency",`${form.currency} (${form.currencySymbol})`],["Opening balance",`${form.currencySymbol}${depositVal.toLocaleString()}`],["Account tier",getAccountType(depositVal)],["Invite Code",inviteCode]].map(([label, val]) => (
+          {[
+            ["Name",            `${form.firstName} ${form.lastName}`],
+            ["Currency",        `${form.currency} (${form.currencySymbol})`],
+            ["Opening balance", `${form.currencySymbol}${depositVal.toLocaleString()}`],
+            ["Account tier",    getAccountType(depositVal)],
+            ["Transaction history", generateHistory ? "✅ Auto-generated" : "Standard"],
+            ["Account mode",    billingMode ? "🔒 Billing/Restricted" : "✅ Normal"],
+          ].map(([label, val]) => (
             <div key={label} className="flex justify-between">
               <span className="text-xs text-on-surface-variant">{label}</span>
               <span className="text-xs font-bold text-primary">{val}</span>
@@ -337,7 +480,6 @@ export default function SignupPage() {
           <h1 className="font-hanken text-xl font-bold text-primary">QuinCore Bank</h1>
         </div>
 
-        {/* Step progress */}
         <div className="flex gap-1.5 mb-5">
           {STEPS.map((_, i) => (
             <div key={i} className={`h-1 flex-1 rounded-full transition-all ${i <= step ? "bg-primary" : "bg-surface-container-high"}`} />
@@ -351,7 +493,6 @@ export default function SignupPage() {
 
         {stepContent[step]}
 
-        {/* Navigation buttons — only show from step 1 onwards */}
         {step > 0 && (
           <div className="flex gap-3 mt-5">
             <button onClick={back} type="button"
