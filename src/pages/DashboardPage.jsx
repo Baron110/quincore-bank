@@ -59,25 +59,6 @@ function Modal({ title, onClose, onSubmit, loading, submitLabel = "Confirm", chi
         </div>
       </div>
 
-      {/* ── BILLING MODE MODAL ── */}
-      {modal === "billing" && (
-        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-primary/60 backdrop-blur-sm">
-          <div className="bg-surface-container-lowest w-full max-w-[420px] rounded-xl shadow-xl border border-outline-variant overflow-hidden">
-            <div className="bg-error px-6 py-5 flex flex-col items-center text-center">
-              <div className="w-14 h-14 bg-on-error rounded-full flex items-center justify-center mb-3">
-                <span className="material-symbols-outlined text-error text-[28px]" style={{ fontVariationSettings: "'FILL' 1" }}>block</span>
-              </div>
-              <h2 className="font-hanken text-xl font-bold text-on-error">Transaction Restricted</h2>
-            </div>
-            <div className="p-6 text-center">
-              <p className="text-sm text-on-surface font-medium leading-relaxed">{userData?.billingMessage || "Your account has been restricted. Please contact support."}</p>
-              <button onClick={closeModal} className="mt-6 w-full bg-primary text-on-primary py-3 rounded-lg text-xs font-bold active:scale-95">
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -725,6 +706,26 @@ export default function DashboardPage() {
             <PinStep onBack={() => { setModalStep(1); setModalError(""); setPinInput(""); }} />
           )}
         </Modal>
+      )}
+
+      {/* BILLING MODE MODAL */}
+      {modal === 'billing' && (
+        <div className='fixed inset-0 z-[999] flex items-center justify-center p-4 bg-primary/60 backdrop-blur-sm'>
+          <div className='bg-surface-container-lowest w-full max-w-[420px] rounded-xl shadow-xl border border-outline-variant overflow-hidden'>
+            <div className='bg-error px-6 py-5 flex flex-col items-center text-center'>
+              <div className='w-14 h-14 bg-on-error rounded-full flex items-center justify-center mb-3'>
+                <span className='material-symbols-outlined text-error text-[28px]'>block</span>
+              </div>
+              <h2 className='font-hanken text-xl font-bold text-on-error'>Transaction Restricted</h2>
+            </div>
+            <div className='p-6 text-center'>
+              <p className='text-sm text-on-surface font-medium leading-relaxed'>{userData && userData.billingMessage ? userData.billingMessage : 'Your account has been restricted. Please contact support.'}</p>
+              <button onClick={closeModal} className='mt-6 w-full bg-primary text-on-primary py-3 rounded-lg text-xs font-bold active:scale-95'>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
