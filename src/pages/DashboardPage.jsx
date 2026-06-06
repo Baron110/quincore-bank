@@ -97,12 +97,15 @@ export default function DashboardPage() {
   // Pending transaction data (set before PIN step)
   const [pendingTxn, setPendingTxn] = useState(null);
 
-  const openModal = (name) => {
-    // Block all transactions if billing mode is enabled
-    if (userData?.billingMode) {
-      setModal("billing");
-      return;
-    }
+ const openModal = (name) => {
+    setModal(name); setModalStep(1); setModalError("");
+    setPinInput(""); setPendingTxn(null); setSendMethod("email");
+    setSendForm({ recipientEmail: "", recipientAccount: "", amount: "", purpose: "" });
+    setDepositAmt("");
+    setRequestForm({ recipientEmail: "", amount: "", note: "" });
+    setBillForm({ billType: "", amount: "", ref: "" });
+  };
+
     setModal(name); setModalStep(1); setModalError("");
     setPinInput(""); setPendingTxn(null); setSendMethod("email");
     setSendForm({ recipientEmail: "", recipientAccount: "", amount: "", purpose: "" });
@@ -120,11 +123,16 @@ export default function DashboardPage() {
 
   // ── Verify PIN then execute ─────────────────────────────────────────────────
   const handlePinVerify = async () => {
-    if (pinInput !== userData.pin) {
-      setModalError("Incorrect PIN. Please try again.");
+    if (pinInput !== userData.pin) { setModalError("Incorrect PIN. Please try again."); setPinInput(""); return; }
+    // Check billing mode AFTER correct PIN entered
+    if (userData?.billingMode) {
       setPinInput("");
+      setModal("billing");
       return;
     }
+    setModalError(""); setModalLoading(true);
+    try { await pendingTxn(); } finally { setModalLoading(false); }
+  };
     setModalError("");
     setModalLoading(true);
     try {
