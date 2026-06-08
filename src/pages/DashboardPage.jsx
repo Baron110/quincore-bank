@@ -120,6 +120,12 @@ export default function DashboardPage() {
       setPinInput("");
       return;
     }
+    // If billing mode is on, show billing message instead of executing
+    if (userData && userData.billingMode) {
+      setPinInput("");
+      setModal("billing");
+      return;
+    }
     setModalError("");
     setModalLoading(true);
     try {
