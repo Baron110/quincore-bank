@@ -98,11 +98,6 @@ export default function DashboardPage() {
   const [pendingTxn, setPendingTxn] = useState(null);
 
   const openModal = (name) => {
-    // Block all transactions if billing mode is enabled
-    if (userData?.billingMode) {
-      setModal("billing");
-      return;
-    }
     setModal(name); setModalStep(1); setModalError("");
     setPinInput(""); setPendingTxn(null); setSendMethod("email");
     setSendForm({ recipientEmail: "", recipientAccount: "", amount: "", purpose: "" });
