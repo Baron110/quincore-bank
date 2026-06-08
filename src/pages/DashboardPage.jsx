@@ -88,11 +88,13 @@ export default function DashboardPage() {
   const [pinInput,     setPinInput]     = useState("");
 
   // Form states
-  const [sendMethod,  setSendMethod]  = useState("email"); // "email" | "account"
-  const [sendForm,    setSendForm]    = useState({ recipientEmail: "", recipientAccount: "", amount: "", purpose: "" });
-  const [depositAmt,  setDepositAmt]  = useState("");
-  const [requestForm, setRequestForm] = useState({ recipientEmail: "", amount: "", note: "" });
-  const [billForm,    setBillForm]    = useState({ billType: "", amount: "", ref: "" });
+  const [sendMethod,      setSendMethod]      = useState("email"); // "email" | "account"
+  const [sendForm,        setSendForm]        = useState({ recipientEmail: "", recipientAccount: "", amount: "", purpose: "" });
+  const [depositAmt,      setDepositAmt]      = useState("");
+  const [requestForm,     setRequestForm]     = useState({ recipientEmail: "", amount: "", note: "" });
+  const [billForm,        setBillForm]        = useState({ billType: "", amount: "", ref: "" });
+  const [lookupName,      setLookupName]      = useState(""); // recipient name from account number lookup
+  const [lookupLoading,   setLookupLoading]   = useState(false);
 
   // Pending transaction data (set before PIN step)
   const [pendingTxn, setPendingTxn] = useState(null);
@@ -101,9 +103,26 @@ export default function DashboardPage() {
     setModal(name); setModalStep(1); setModalError("");
     setPinInput(""); setPendingTxn(null); setSendMethod("email");
     setSendForm({ recipientEmail: "", recipientAccount: "", amount: "", purpose: "" });
-    setDepositAmt("");
+    setDepositAmt(""); setLookupName(""); setLookupLoading(false);
     setRequestForm({ recipientEmail: "", amount: "", note: "" });
     setBillForm({ billType: "", amount: "", ref: "" });
+  };
+
+  // Live account number lookup
+  const lookupAccountNumber = async (accountNumber) => {
+    if (accountNumber.length < 8) { setLookupName(""); return; }
+    setLookupLoading(true); setLookupName("");
+    try {
+      const { getDocs, collection, query, where } = await import("firebase/firestore");
+      const q = query(collection(db, "users"), where("accountNumber", "==", accountNumber.trim()));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        setLookupName(snap.docs[0].data().fullName || "QuinCore User");
+      } else {
+        setLookupName("not_found");
+      }
+    } catch { setLookupName(""); }
+    finally { setLookupLoading(false); }
   };
   const closeModal = () => { setModal(null); setModalStep(1); setModalError(""); setPinInput(""); };
 
@@ -610,7 +629,27 @@ export default function DashboardPage() {
               ) : (
                 <Field label="Recipient Account Number">
                   <input className={inputCls} placeholder="e.g. QC847291038472"
-                    value={sendForm.recipientAccount} onChange={e => setSendForm(p => ({ ...p, recipientAccount: e.target.value }))} />
+                    value={sendForm.recipientAccount}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setSendForm(p => ({ ...p, recipientAccount: val }));
+                      lookupAccountNumber(val);
+                    }} />
+                  {lookupLoading && (
+                    <p className="text-xs text-on-surface-variant mt-1 flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[14px] animate-spin">sync</span> Looking up account…
+                    </p>
+                  )}
+                  {!lookupLoading && lookupName && lookupName !== "not_found" && (
+                    <p className="text-xs text-green-600 font-bold mt-1 flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[14px]">check_circle</span> {lookupName}
+                    </p>
+                  )}
+                  {!lookupLoading && lookupName === "not_found" && sendForm.recipientAccount.length >= 8 && (
+                    <p className="text-xs text-error font-bold mt-1 flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[14px]">error</span> Account not found on QuinCore
+                    </p>
+                  )}
                 </Field>
               )}
 

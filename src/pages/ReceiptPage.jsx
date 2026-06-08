@@ -18,22 +18,28 @@ export default function ReceiptPage() {
     symbol: "$",
   };
 
-  const handleDownload = async () => {
-    const { default: html2canvas } = await import("html2canvas");
-    const { default: jsPDF } = await import("jspdf");
+  const handleDownload = () => {
+    const content = `
+QuinCore Bank — Transaction Receipt
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Transaction ID : ${receipt.transactionId}
+Date & Time    : ${receipt.date} · ${receipt.time}
+Type           : ${receipt.type}
+Amount         : ${receipt.symbol}${receipt.amount}
+Recipient      : ${receipt.recipientName}
+${receipt.recipientEmail ? `Email          : ${receipt.recipientEmail}` : ""}
+New Balance    : ${receipt.symbol}${receipt.newBalance}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+QuinCore Bank — Premium Digital Banking
+    `.trim();
 
-    const element = document.getElementById("receipt-card");
-    const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
-    const imgData = canvas.toDataURL("image/png");
-
-    const pdf = new jsPDF({
-      orientation: "portrait",
-      unit: "px",
-      format: [canvas.width / 2, canvas.height / 2],
-    });
-
-    pdf.addImage(imgData, "PNG", 0, 0, canvas.width / 2, canvas.height / 2);
-    pdf.save(`QuinCore_Receipt_${receipt.transactionId}.pdf`);
+    const blob = new Blob([content], { type: "text/plain" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url;
+    a.download = `QuinCore_Receipt_${receipt.transactionId}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -41,7 +47,9 @@ export default function ReceiptPage() {
       {/* Top bar */}
       <header className="w-full bg-background border-b border-outline-variant">
         <div className="flex justify-between items-center px-gutter py-md w-full max-w-container-max mx-auto">
-          <h1 className="font-hanken text-headline-md text-primary cursor-pointer" onClick={() => navigate("/dashboard")}>
+          <h1
+            className="font-hanken text-headline-md text-primary cursor-pointer"
+            onClick={() => navigate("/dashboard")}>
             QuinCore Bank
           </h1>
           <span className="material-symbols-outlined text-primary">notifications</span>
@@ -50,12 +58,14 @@ export default function ReceiptPage() {
 
       {/* Receipt Card */}
       <main className="flex items-center justify-center min-h-[calc(100vh-140px)] px-4 py-8 pb-24 md:pb-8">
-        <div id="receipt-card" className="w-full max-w-[480px] bg-surface-container-lowest rounded-xl border border-outline-variant shadow-lg overflow-hidden">
+        <div className="w-full max-w-[480px] bg-surface-container-lowest rounded-xl border border-outline-variant shadow-lg overflow-hidden">
 
-          {/* Dark header */}
+          {/* Green success header */}
           <div className="bg-primary text-on-primary px-lg py-xl flex flex-col items-center text-center">
             <div className="w-16 h-16 bg-secondary-fixed rounded-full flex items-center justify-center mb-md">
-              <span className="material-symbols-outlined text-primary" style={{ fontSize: 32, fontVariationSettings: "'FILL' 1" }}>
+              <span
+                className="material-symbols-outlined text-primary"
+                style={{ fontSize: 32, fontVariationSettings: "'FILL' 1" }}>
                 check_circle
               </span>
             </div>
@@ -63,7 +73,7 @@ export default function ReceiptPage() {
               Transaction Completed
             </p>
             <h2 className="font-hanken text-4xl font-bold mt-1">
-              {receipt.symbol}{receipt.amount}
+              {receipt.symbol}{parseFloat(receipt.amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h2>
             <p className="opacity-80 mt-xs text-sm">
               {receipt.type === "deposit"
@@ -80,18 +90,17 @@ export default function ReceiptPage() {
             <div className="grid grid-cols-2 gap-md">
               <div>
                 <p className="font-label-sm text-on-surface-variant mb-xs text-xs">Transaction ID</p>
-                <p className="font-body-md font-semibold text-primary text-sm break-all">{receipt.transactionId}</p>
+                <p className="font-body-md font-semibold text-primary text-sm">{receipt.transactionId}</p>
               </div>
               <div className="text-right">
                 <p className="font-label-sm text-on-surface-variant mb-xs text-xs">Date & Time</p>
-                <p className="font-body-md font-semibold text-primary text-sm">{receipt.date}</p>
-                <p className="font-body-md font-semibold text-primary text-xs">{receipt.time}</p>
+                <p className="font-body-md font-semibold text-primary text-sm">{receipt.date} · {receipt.time}</p>
               </div>
             </div>
 
             <div className="h-px bg-outline-variant w-full" />
 
-            {/* Recipient */}
+            {/* Recipient / Details */}
             <div className="space-y-md">
               <p className="font-label-sm text-on-surface-variant uppercase tracking-tight text-xs">
                 {receipt.type === "deposit" ? "Deposit Details" : receipt.type === "bill" ? "Bill Details" : "Recipient Details"}
@@ -111,12 +120,12 @@ export default function ReceiptPage() {
               </div>
             </div>
 
-            {/* Summary */}
+            {/* Summary row */}
             <div className="bg-surface-container-low rounded-xl p-md space-y-2">
               {[
-                ["Amount",      `${receipt.symbol}${receipt.amount}`],
+                ["Amount",      `${receipt.symbol}${parseFloat(receipt.amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
                 ["Type",        receipt.type],
-                ["New Balance", `${receipt.symbol}${receipt.newBalance}`],
+                ["New Balance", `${receipt.symbol}${parseFloat(receipt.newBalance).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
               ].map(([label, val]) => (
                 <div key={label} className="flex justify-between items-center">
                   <span className="text-xs text-on-surface-variant font-semibold uppercase tracking-wider">{label}</span>
