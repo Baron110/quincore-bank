@@ -204,7 +204,6 @@ export default function DashboardPage() {
       // ── Currency Conversion ──────────────────────────────────────────────
       let convertedAmount = amount;
       const recipientCurrency = recipientData.currency || "USD";
-      const recipientSym      = recipientData.currencySymbol || "$";
 
       if (senderCurrency !== recipientCurrency) {
         try {
