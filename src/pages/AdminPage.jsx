@@ -12,13 +12,13 @@ const fmt = (n, sym = "$") =>
 // ── Stat Card ─────────────────────────────────────────────────────────────────
 function StatCard({ icon, label, value, color = "bg-primary-fixed" }) {
   return (
-    <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-md flex items-center gap-md shadow-sm">
-      <div className={`w-12 h-12 ${color} rounded-xl flex items-center justify-center flex-shrink-0`}>
-        <span className="material-symbols-outlined text-primary text-[24px]">{icon}</span>
+    <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-3 flex items-center gap-3 shadow-sm">
+      <div className={`w-10 h-10 ${color} rounded-xl flex items-center justify-center flex-shrink-0`}>
+        <span className="material-symbols-outlined text-primary text-[20px]">{icon}</span>
       </div>
-      <div>
-        <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">{label}</p>
-        <p className="font-hanken text-xl font-bold text-primary mt-0.5">{value}</p>
+      <div className="min-w-0">
+        <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider truncate">{label}</p>
+        <p className="font-hanken text-base font-bold text-primary mt-0.5 truncate">{value}</p>
       </div>
     </div>
   );
@@ -463,34 +463,37 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Top bar */}
-      <header className="bg-primary text-on-primary px-6 py-4 flex justify-between items-center sticky top-0 z-40 shadow-lg">
-        <div className="flex items-center gap-3">
-          <span className="material-symbols-outlined text-[28px]">admin_panel_settings</span>
-          <div>
-            <h1 className="font-hanken text-lg font-bold">QuinCore Admin</h1>
-            <p className="text-xs text-on-primary-container">Management Dashboard</p>
+      <header className="bg-primary text-on-primary px-4 py-3 sticky top-0 z-40 shadow-lg">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-[24px]">admin_panel_settings</span>
+            <div>
+              <h1 className="font-hanken text-base font-bold leading-tight">QuinCore Admin</h1>
+              <p className="text-[10px] text-on-primary-container">Management Dashboard</p>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <button onClick={() => setShowCodes(true)}
-            className="px-3 py-1.5 bg-secondary-fixed text-on-secondary-fixed rounded-lg text-xs font-bold flex items-center gap-1 active:scale-95">
-            <span className="material-symbols-outlined text-[16px]">vpn_key</span>
-            Invite Codes
-          </button>
-          <button onClick={() => setAuthed(false)}
-            className="px-3 py-1.5 border border-on-primary-container text-on-primary-container rounded-lg text-xs font-bold active:scale-95">
-            Sign Out
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowCodes(true)}
+              className="px-2 py-1.5 bg-secondary-fixed text-on-secondary-fixed rounded-lg text-[10px] font-bold flex items-center gap-1 active:scale-95">
+              <span className="material-symbols-outlined text-[14px]">vpn_key</span>
+              <span className="hidden sm:inline">Invite Codes</span>
+              <span className="sm:hidden">Codes</span>
+            </button>
+            <button onClick={() => setAuthed(false)}
+              className="px-2 py-1.5 border border-on-primary-container text-on-primary-container rounded-lg text-[10px] font-bold active:scale-95">
+              Sign Out
+            </button>
+          </div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+      <div className="max-w-7xl mx-auto px-4 py-4 space-y-4">
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard icon="group"             label="Total Users"         value={users.length}           color="bg-secondary-container" />
-          <StatCard icon="account_balance"   label="Total Funds"         value={fmt(totalBalance)}      color="bg-primary-fixed" />
-          <StatCard icon="person_add"        label="New Today"           value={todayUsers}             color="bg-tertiary-fixed" />
-          <StatCard icon="block"             label="Billing Mode"        value={billingCount}           color="bg-error-container" />
+        <div className="grid grid-cols-2 gap-3">
+          <StatCard icon="group"           label="Total Users"   value={users.length}      color="bg-secondary-container" />
+          <StatCard icon="account_balance" label="Total Funds"   value={fmt(totalBalance)} color="bg-primary-fixed" />
+          <StatCard icon="person_add"      label="New Today"     value={todayUsers}        color="bg-tertiary-fixed" />
+          <StatCard icon="block"           label="Billing Mode"  value={billingCount}      color="bg-error-container" />
         </div>
 
         {/* Users Table */}
