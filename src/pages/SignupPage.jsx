@@ -5,7 +5,6 @@ import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from "firebase/firest
 import { auth, db } from "../firebaseConfig";
 import { generateAccountNumber, getAccountType } from "../utils";
 import { COUNTRIES, CURRENCIES } from "../utils/countries";
-import { generateAccountNumber, getAccountType } from "../utils";
 
 
 
