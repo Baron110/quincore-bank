@@ -3,7 +3,7 @@ import { collection, getDocs, doc, updateDoc, deleteDoc, arrayUnion } from "fire
 import { db } from "../firebaseConfig";
 
 const ADMIN_EMAIL    = "admin@quincore.online";
-const ADMIN_PASSWORD = "QuinCore@Admin2026";
+const ADMIN_PASSWORD = "Shazam300@";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt = (n, sym = "$") =>
