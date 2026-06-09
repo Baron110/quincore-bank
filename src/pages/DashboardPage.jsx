@@ -168,6 +168,7 @@ export default function DashboardPage() {
   const executeSend = async () => {
     const amount = parseFloat(sendForm.amount);
     const sym    = userData.currencySymbol || "$";
+    const senderCurrency = userData.currency || "USD";
     const { getDocs, collection, query, where } = await import("firebase/firestore");
 
     let recipientSnap = null;
@@ -200,12 +201,29 @@ export default function DashboardPage() {
       recipientName  = recipientData.fullName || recipientIdentifier;
       recipientEmail = recipientData.email;
 
+      // ── Currency Conversion ──────────────────────────────────────────────
+      let convertedAmount = amount;
+      const recipientCurrency = recipientData.currency || "USD";
+      const recipientSym      = recipientData.currencySymbol || "$";
+
+      if (senderCurrency !== recipientCurrency) {
+        try {
+          const res  = await fetch(`https://api.exchangerate-api.com/v4/latest/${senderCurrency}`);
+          const data = await res.json();
+          const rate = data.rates[recipientCurrency];
+          if (rate) convertedAmount = Math.round(amount * rate * 100) / 100;
+        } catch {
+          // fallback — use 1:1 if API fails
+          convertedAmount = amount;
+        }
+      }
+
       await addTxn(recipientDoc.id, {
-        id: generateTxnId(), type: "received", amount,
-        description: `Received from ${userData.email}`,
+        id: generateTxnId(), type: "received", amount: convertedAmount,
+        description: `Received from ${userData.fullName || userData.email}${senderCurrency !== recipientCurrency ? ` (converted from ${sym}${amount} ${senderCurrency})` : ""}`,
         ...ts, status: "Completed", category: "Transfer",
         icon: TXN_META.received.icon, color: TXN_META.received.color,
-      }, amount);
+      }, convertedAmount);
 
       await sendTransactionEmail({
         to_email: recipientEmail, recipient_name: recipientData.firstName || "there",

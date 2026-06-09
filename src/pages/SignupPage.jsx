@@ -4,20 +4,10 @@ import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebaseConfig";
 import { generateAccountNumber, getAccountType } from "../utils";
+import { COUNTRIES, CURRENCIES } from "../utils/countries";
+import { generateAccountNumber, getAccountType } from "../utils";
 
-const COUNTRIES = [
-  { name: "Canada",         currency: "CAD", symbol: "CA$" },
-  { name: "United States",  currency: "USD", symbol: "$" },
-  { name: "United Kingdom", currency: "GBP", symbol: "£" },
-  { name: "Australia",      currency: "AUD", symbol: "A$" },
-  { name: "Germany",        currency: "EUR", symbol: "€" },
-  { name: "France",         currency: "EUR", symbol: "€" },
-  { name: "Netherlands",    currency: "EUR", symbol: "€" },
-  { name: "Nigeria",        currency: "USD", symbol: "$" },
-  { name: "South Africa",   currency: "USD", symbol: "$" },
-  { name: "India",          currency: "USD", symbol: "$" },
-  { name: "Other",          currency: "USD", symbol: "$" },
-];
+
 
 const DEPOSIT_OPTS = [500, 1000, 2500, 5000, 10000, 25000];
 const STEPS = ["Invite Code", "Personal Info", "Contact & Address", "Security", "Account Setup"];
@@ -333,15 +323,31 @@ export default function SignupPage() {
           <select
             className={`w-full px-3 py-3 rounded-lg border ${fieldErrors.country ? "border-error" : "border-outline-variant"} focus:outline-none focus:border-primary bg-white text-sm`}
             value={form.country} onChange={set("country")}>
-            <option value="">Select</option>
-            {COUNTRIES.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+            <option value="">Select country</option>
+            {COUNTRIES.sort((a,b) => a.name.localeCompare(b.name)).map(c => (
+              <option key={c.name} value={c.name}>{c.name}</option>
+            ))}
           </select>
           {fieldErrors.country && <p className="text-error text-xs mt-1">{fieldErrors.country}</p>}
         </div>
       </div>
       {form.country && (
-        <div className="p-3 bg-secondary-container text-on-secondary-container rounded-lg text-xs font-semibold">
-          ✓ Currency: <strong>{form.currency} ({form.currencySymbol})</strong>
+        <div className="space-y-2">
+          <label className="text-xs font-semibold text-primary block">Preferred Currency</label>
+          <select
+            className="w-full px-3 py-3 rounded-lg border border-outline-variant focus:outline-none focus:border-primary bg-white text-sm"
+            value={form.currency}
+            onChange={e => {
+              const found = CURRENCIES.find(c => c.code === e.target.value);
+              if (found) setForm(p => ({ ...p, currency: found.code, currencySymbol: found.symbol }));
+            }}>
+            {CURRENCIES.sort((a,b) => a.name.localeCompare(b.name)).map(c => (
+              <option key={c.code} value={c.code}>{c.name} ({c.code}) {c.symbol}</option>
+            ))}
+          </select>
+          <div className="p-3 bg-secondary-container text-on-secondary-container rounded-lg text-xs font-semibold">
+            ✓ Selected: <strong>{form.currency} — {CURRENCIES.find(c => c.code === form.currency)?.name || ""}</strong>
+          </div>
         </div>
       )}
     </div>,

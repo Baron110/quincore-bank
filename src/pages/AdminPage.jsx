@@ -1,0 +1,618 @@
+import React, { useState, useEffect } from "react";
+import { collection, getDocs, doc, updateDoc, deleteDoc, arrayUnion } from "firebase/firestore";
+import { db } from "../firebaseConfig";
+
+const ADMIN_EMAIL    = "admin@quincore.online";
+const ADMIN_PASSWORD = "QuinCore@Admin2026";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const fmt = (n, sym = "$") =>
+  `${sym}${Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+// ── Stat Card ─────────────────────────────────────────────────────────────────
+function StatCard({ icon, label, value, color = "bg-primary-fixed" }) {
+  return (
+    <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-md flex items-center gap-md shadow-sm">
+      <div className={`w-12 h-12 ${color} rounded-xl flex items-center justify-center flex-shrink-0`}>
+        <span className="material-symbols-outlined text-primary text-[24px]">{icon}</span>
+      </div>
+      <div>
+        <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">{label}</p>
+        <p className="font-hanken text-xl font-bold text-primary mt-0.5">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+// ── User Detail Modal ─────────────────────────────────────────────────────────
+function UserModal({ user, onClose, onUpdate }) {
+  const [tab,            setTab]            = useState("overview");
+  const [saving,         setSaving]         = useState(false);
+  const [fundAmount,     setFundAmount]      = useState("");
+  const [newBalance,     setNewBalance]      = useState(String(user.balance || 0));
+  const [newPin,         setNewPin]          = useState("");
+  const [billingMode,    setBillingMode]     = useState(user.billingMode || false);
+  const [billingMessage, setBillingMessage]  = useState(user.billingMessage || "");
+  const [successMsg,     setSuccessMsg]      = useState("");
+  const [errorMsg,       setErrorMsg]        = useState("");
+
+  const save = async (updates, msg) => {
+    setSaving(true); setSuccessMsg(""); setErrorMsg("");
+    try {
+      await updateDoc(doc(db, "users", user.id), updates);
+      setSuccessMsg(msg);
+      onUpdate();
+      setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (e) { setErrorMsg(e.message); }
+    finally { setSaving(false); }
+  };
+
+  const handleFund = async () => {
+    const amount = parseFloat(fundAmount);
+    if (isNaN(amount) || amount <= 0) { setErrorMsg("Enter a valid amount."); return; }
+    const newBal = (user.balance || 0) + amount;
+    await save({
+      balance: newBal,
+      transactions: arrayUnion({
+        id: `ADM${Date.now()}`,
+        type: "deposit",
+        amount,
+        description: "Admin — Account funded",
+        date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+        time: new Date().toLocaleTimeString(),
+        status: "Completed",
+        category: "Income",
+        icon: "account_balance_wallet",
+        color: "bg-primary-fixed",
+      }),
+    }, `Account funded with ${fmt(amount)}`);
+    setFundAmount("");
+  };
+
+  const handleDeduct = async () => {
+    const amount = parseFloat(fundAmount);
+    if (isNaN(amount) || amount <= 0) { setErrorMsg("Enter a valid amount."); return; }
+    if (amount > user.balance) { setErrorMsg("Amount exceeds balance."); return; }
+    const newBal = (user.balance || 0) - amount;
+    await save({
+      balance: newBal,
+      transactions: arrayUnion({
+        id: `ADM${Date.now()}`,
+        type: "sent",
+        amount,
+        description: "Admin — Balance deducted",
+        date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+        time: new Date().toLocaleTimeString(),
+        status: "Completed",
+        category: "Transfer",
+        icon: "remove_circle",
+        color: "bg-error-container",
+      }),
+    }, `${fmt(amount)} deducted from account`);
+    setFundAmount("");
+  };
+
+  const handleSetBalance = async () => {
+    const val = parseFloat(newBalance);
+    if (isNaN(val) || val < 0) { setErrorMsg("Invalid balance."); return; }
+    await save({ balance: val }, `Balance set to ${fmt(val)}`);
+  };
+
+  const handleResetPin = async () => {
+    if (!/^\d{4,6}$/.test(newPin)) { setErrorMsg("PIN must be 4–6 digits."); return; }
+    await save({ pin: newPin }, "PIN reset successfully");
+    setNewPin("");
+  };
+
+  const handleBilling = async () => {
+    if (billingMode && !billingMessage.trim()) { setErrorMsg("Enter a billing message."); return; }
+    await save({ billingMode, billingMessage: billingMode ? billingMessage.trim() : "" },
+      billingMode ? "Billing mode enabled" : "Billing mode disabled");
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm(`Delete ${user.fullName}'s account? This cannot be undone.`)) return;
+    setSaving(true);
+    try { await deleteDoc(doc(db, "users", user.id)); onUpdate(); onClose(); }
+    catch (e) { setErrorMsg(e.message); setSaving(false); }
+  };
+
+  const inputCls = "w-full px-3 py-2.5 rounded-lg border border-outline-variant text-sm focus:outline-none focus:border-primary bg-white";
+  const tabs = ["overview", "balance", "billing", "security", "transactions"];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/50 backdrop-blur-sm">
+      <div className="bg-surface-container-lowest w-full max-w-2xl rounded-xl shadow-xl border border-outline-variant overflow-hidden max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="bg-primary text-on-primary px-6 py-4 flex justify-between items-center flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-secondary-fixed rounded-full flex items-center justify-center">
+              <span className="font-bold text-primary text-sm">{user.firstName?.[0]}{user.lastName?.[0]}</span>
+            </div>
+            <div>
+              <p className="font-hanken text-lg font-bold">{user.fullName}</p>
+              <p className="text-xs text-on-primary-container">{user.email}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="material-symbols-outlined active:scale-95">close</button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b border-outline-variant bg-surface-container-low overflow-x-auto flex-shrink-0">
+          {tabs.map(t => (
+            <button key={t} onClick={() => setTab(t)}
+              className={`px-4 py-2.5 text-xs font-bold capitalize whitespace-nowrap transition-all border-b-2 ${tab === t ? "border-primary text-primary" : "border-transparent text-on-surface-variant"}`}>
+              {t}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div className="overflow-y-auto flex-1 p-6 space-y-4">
+          {successMsg && <div className="p-3 bg-green-100 text-green-700 rounded-lg text-xs font-bold flex items-center gap-2"><span className="material-symbols-outlined text-[16px]">check_circle</span>{successMsg}</div>}
+          {errorMsg   && <div className="p-3 bg-error-container text-on-error-container rounded-lg text-xs font-bold">{errorMsg}</div>}
+
+          {/* Overview Tab */}
+          {tab === "overview" && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  ["Account Number", user.accountNumber],
+                  ["Account Tier",   user.accountType],
+                  ["Balance",        fmt(user.balance, user.currencySymbol)],
+                  ["Currency",       `${user.currency} (${user.currencySymbol})`],
+                  ["Country",        user.country],
+                  ["Phone",          user.phone],
+                  ["Date of Birth",  user.dateOfBirth],
+                  ["Address",        user.address],
+                  ["Invite Code",    user.inviteCode],
+                  ["Transactions",   (user.transactions || []).length],
+                ].map(([label, val]) => (
+                  <div key={label} className="bg-surface-container-low rounded-lg p-3">
+                    <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{label}</p>
+                    <p className="text-sm font-bold text-primary mt-0.5 break-all">{val || "—"}</p>
+                  </div>
+                ))}
+              </div>
+              {/* Status badges */}
+              <div className="flex flex-wrap gap-2">
+                <span className={`px-3 py-1 rounded-full text-xs font-bold ${user.billingMode ? "bg-error-container text-on-error-container" : "bg-green-100 text-green-700"}`}>
+                  {user.billingMode ? "🔒 Billing Mode ON" : "✅ Account Active"}
+                </span>
+                <span className="px-3 py-1 rounded-full text-xs font-bold bg-secondary-container text-on-secondary-container">
+                  {user.accountType} Tier
+                </span>
+              </div>
+              {/* Danger zone */}
+              <div className="border border-error/30 rounded-xl p-4 bg-error-container/20">
+                <p className="text-xs font-bold text-error mb-3 uppercase tracking-wider">⚠️ Danger Zone</p>
+                <button onClick={handleDelete} disabled={saving}
+                  className="w-full py-2.5 border border-error text-error rounded-lg text-xs font-bold hover:bg-error hover:text-on-error transition-colors active:scale-95">
+                  Delete Account Permanently
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Balance Tab */}
+          {tab === "balance" && (
+            <div className="space-y-4">
+              <div className="bg-primary-container rounded-xl p-4 text-center">
+                <p className="text-xs text-on-primary-container">Current Balance</p>
+                <p className="font-hanken text-3xl font-bold text-on-primary mt-1">{fmt(user.balance, user.currencySymbol)}</p>
+              </div>
+
+              {/* Fund / Deduct */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-primary uppercase tracking-wider block">Fund or Deduct</label>
+                <input className={inputCls} type="number" placeholder="Enter amount" value={fundAmount} onChange={e => { setFundAmount(e.target.value); setErrorMsg(""); }} />
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={handleFund} disabled={saving}
+                    className="py-2.5 bg-green-600 text-white rounded-lg text-xs font-bold active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1">
+                    <span className="material-symbols-outlined text-[16px]">add_circle</span> Fund Account
+                  </button>
+                  <button onClick={handleDeduct} disabled={saving}
+                    className="py-2.5 bg-error text-on-error rounded-lg text-xs font-bold active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1">
+                    <span className="material-symbols-outlined text-[16px]">remove_circle</span> Deduct
+                  </button>
+                </div>
+              </div>
+
+              <div className="h-px bg-outline-variant" />
+
+              {/* Set exact balance */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-primary uppercase tracking-wider block">Set Exact Balance</label>
+                <input className={inputCls} type="number" placeholder="New balance" value={newBalance} onChange={e => { setNewBalance(e.target.value); setErrorMsg(""); }} />
+                <button onClick={handleSetBalance} disabled={saving}
+                  className="w-full py-2.5 bg-primary text-on-primary rounded-lg text-xs font-bold active:scale-95 disabled:opacity-60">
+                  {saving ? "Saving…" : "Set Balance"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Billing Tab */}
+          {tab === "billing" && (
+            <div className="space-y-4">
+              <div className={`p-4 rounded-xl border-2 ${billingMode ? "border-error bg-error-container/30" : "border-outline-variant bg-surface-container-low"}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <p className="text-sm font-bold text-primary">Billing / Restricted Mode</p>
+                    <p className="text-xs text-on-surface-variant">Blocks all transactions. Account appears normal.</p>
+                  </div>
+                  <button onClick={() => setBillingMode(v => !v)}
+                    className={`w-12 h-6 rounded-full transition-all relative ${billingMode ? "bg-error" : "bg-surface-container-high"}`}>
+                    <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${billingMode ? "left-6" : "left-0.5"}`} />
+                  </button>
+                </div>
+              </div>
+
+              {billingMode && (
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-error uppercase tracking-wider block">Custom Billing Message</label>
+                  <textarea className={`${inputCls} resize-none`} rows={4}
+                    placeholder="e.g. Your account has been temporarily restricted. Contact support@quincore.online"
+                    value={billingMessage} onChange={e => { setBillingMessage(e.target.value); setErrorMsg(""); }} />
+                </div>
+              )}
+
+              <button onClick={handleBilling} disabled={saving}
+                className={`w-full py-2.5 rounded-lg text-xs font-bold active:scale-95 disabled:opacity-60 ${billingMode ? "bg-error text-on-error" : "bg-primary text-on-primary"}`}>
+                {saving ? "Saving…" : billingMode ? "Enable Billing Mode" : "Disable Billing Mode"}
+              </button>
+
+              {user.billingMode && (
+                <div className="bg-error-container p-3 rounded-lg">
+                  <p className="text-xs font-bold text-on-error-container">Current Message:</p>
+                  <p className="text-xs text-on-error-container mt-1">{user.billingMessage || "No message set"}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Security Tab */}
+          {tab === "security" && (
+            <div className="space-y-4">
+              <div className="bg-surface-container-low rounded-xl p-4 space-y-2">
+                <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Current PIN</p>
+                <p className="font-hanken text-2xl font-bold text-primary tracking-widest">{user.pin || "—"}</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-primary uppercase tracking-wider block">Reset PIN</label>
+                <input className={inputCls} type="text" placeholder="Enter new 4–6 digit PIN"
+                  value={newPin} onChange={e => { setNewPin(e.target.value); setErrorMsg(""); }}
+                  maxLength={6} inputMode="numeric" />
+                <button onClick={handleResetPin} disabled={saving}
+                  className="w-full py-2.5 bg-primary text-on-primary rounded-lg text-xs font-bold active:scale-95 disabled:opacity-60">
+                  {saving ? "Saving…" : "Reset PIN"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Transactions Tab */}
+          {tab === "transactions" && (
+            <div className="space-y-2">
+              <p className="text-xs font-bold text-on-surface-variant">{(user.transactions || []).length} total transactions</p>
+              {[...(user.transactions || [])].reverse().map((tx, i) => {
+                const isIn = ["received","deposit"].includes(tx.type);
+                const isOut = ["sent","bill"].includes(tx.type);
+                return (
+                  <div key={i} className="flex items-center gap-3 p-3 bg-surface-container-low rounded-lg">
+                    <div className={`w-9 h-9 rounded-full ${tx.color || "bg-secondary-container"} flex items-center justify-center flex-shrink-0`}>
+                      <span className="material-symbols-outlined text-[16px]">{tx.icon || "receipt"}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-primary truncate">{tx.description}</p>
+                      <p className="text-[10px] text-on-surface-variant">{tx.date} · {tx.category}</p>
+                    </div>
+                    <p className={`text-xs font-bold flex-shrink-0 ${isIn ? "text-green-600" : isOut ? "text-error" : "text-primary"}`}>
+                      {isIn ? "+" : isOut ? "-" : ""}{fmt(tx.amount, user.currencySymbol)}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Invite Codes Panel ────────────────────────────────────────────────────────
+function CodesPanel({ onClose }) {
+  const [codes,   setCodes]   = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving,  setSaving]  = useState("");
+
+  useEffect(() => {
+    getDocs(collection(db, "invite_codes")).then(snap => {
+      setCodes(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLoading(false);
+    });
+  }, []);
+
+  const resetCode = async (codeId) => {
+    setSaving(codeId);
+    await updateDoc(doc(db, "invite_codes", codeId), { used: false, usedBy: "", usedAt: "" });
+    setCodes(prev => prev.map(c => c.id === codeId ? { ...c, used: false, usedBy: "" } : c));
+    setSaving("");
+  };
+
+  const used   = codes.filter(c => c.used).length;
+  const unused = codes.filter(c => !c.used).length;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/50 backdrop-blur-sm">
+      <div className="bg-surface-container-lowest w-full max-w-lg rounded-xl shadow-xl border border-outline-variant overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="bg-primary text-on-primary px-6 py-4 flex justify-between items-center">
+          <div>
+            <p className="font-hanken text-lg font-bold">Invite Codes</p>
+            <p className="text-xs text-on-primary-container">{used} used · {unused} available</p>
+          </div>
+          <button onClick={onClose} className="material-symbols-outlined">close</button>
+        </div>
+        <div className="overflow-y-auto flex-1 p-4 space-y-2">
+          {loading ? (
+            <div className="flex justify-center py-8"><span className="material-symbols-outlined animate-spin text-primary">sync</span></div>
+          ) : codes.map(code => (
+            <div key={code.id} className={`flex items-center justify-between p-3 rounded-lg border ${code.used ? "border-error/30 bg-error-container/20" : "border-green-200 bg-green-50"}`}>
+              <div>
+                <p className="text-xs font-bold font-mono text-primary">{code.id}</p>
+                {code.used && <p className="text-[10px] text-on-surface-variant mt-0.5">Used by: {code.usedBy}</p>}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${code.used ? "bg-error-container text-on-error-container" : "bg-green-100 text-green-700"}`}>
+                  {code.used ? "USED" : "FREE"}
+                </span>
+                {code.used && (
+                  <button onClick={() => resetCode(code.id)} disabled={saving === code.id}
+                    className="text-[10px] font-bold text-primary border border-primary px-2 py-0.5 rounded-full hover:bg-primary hover:text-on-primary transition-colors active:scale-95">
+                    {saving === code.id ? "…" : "Reset"}
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Admin Page ───────────────────────────────────────────────────────────
+export default function AdminPage() {
+  const [authed,       setAuthed]       = useState(false);
+  const [loginForm,    setLoginForm]    = useState({ email: "", password: "" });
+  const [loginError,   setLoginError]   = useState("");
+  const [users,        setUsers]        = useState([]);
+  const [loading,      setLoading]      = useState(false);
+  const [search,       setSearch]       = useState("");
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [showCodes,    setShowCodes]    = useState(false);
+  const [filterTier,   setFilterTier]   = useState("All");
+
+  const handleLogin = () => {
+    if (loginForm.email === ADMIN_EMAIL && loginForm.password === ADMIN_PASSWORD) {
+      setAuthed(true);
+      fetchUsers();
+    } else {
+      setLoginError("Invalid admin credentials.");
+    }
+  };
+
+  const fetchUsers = async () => {
+    setLoading(true);
+    const snap = await getDocs(collection(db, "users"));
+    setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    setLoading(false);
+  };
+
+  const filtered = users.filter(u => {
+    const q = search.toLowerCase();
+    const matchSearch = !q || u.fullName?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || u.accountNumber?.toLowerCase().includes(q);
+    const matchTier = filterTier === "All" || u.accountType === filterTier;
+    return matchSearch && matchTier;
+  });
+
+  const totalBalance = users.reduce((s, u) => s + (u.balance || 0), 0);
+  const billingCount = users.filter(u => u.billingMode).length;
+  const todayUsers   = users.filter(u => {
+    if (!u.createdAt?.toDate) return false;
+    const d = u.createdAt.toDate();
+    const now = new Date();
+    return d.getDate() === now.getDate() && d.getMonth() === now.getMonth();
+  }).length;
+
+  // ── Login Screen ────────────────────────────────────────────────────────────
+  if (!authed) {
+    return (
+      <div className="min-h-screen bg-primary flex items-center justify-center p-4">
+        <div className="w-full max-w-sm bg-surface-container-lowest rounded-xl border border-outline-variant p-8 shadow-xl">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="material-symbols-outlined text-on-primary text-[32px]">admin_panel_settings</span>
+            </div>
+            <h1 className="font-hanken text-2xl font-bold text-primary">Admin Panel</h1>
+            <p className="text-xs text-on-surface-variant mt-1">QuinCore Bank Management</p>
+          </div>
+          {loginError && <p className="text-error text-xs font-bold mb-4 text-center">{loginError}</p>}
+          <div className="space-y-3">
+            <input
+              className="w-full px-3 py-3 rounded-lg border border-outline-variant text-sm focus:outline-none focus:border-primary bg-white"
+              type="email" placeholder="Admin email"
+              value={loginForm.email} onChange={e => setLoginForm(p => ({ ...p, email: e.target.value }))} />
+            <input
+              className="w-full px-3 py-3 rounded-lg border border-outline-variant text-sm focus:outline-none focus:border-primary bg-white"
+              type="password" placeholder="Admin password"
+              value={loginForm.password} onChange={e => setLoginForm(p => ({ ...p, password: e.target.value }))}
+              onKeyDown={e => e.key === "Enter" && handleLogin()} />
+            <button onClick={handleLogin}
+              className="w-full bg-primary text-on-primary py-3 rounded-lg text-xs font-bold active:scale-95 transition-transform">
+              Sign In to Admin
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Admin Dashboard ─────────────────────────────────────────────────────────
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Top bar */}
+      <header className="bg-primary text-on-primary px-6 py-4 flex justify-between items-center sticky top-0 z-40 shadow-lg">
+        <div className="flex items-center gap-3">
+          <span className="material-symbols-outlined text-[28px]">admin_panel_settings</span>
+          <div>
+            <h1 className="font-hanken text-lg font-bold">QuinCore Admin</h1>
+            <p className="text-xs text-on-primary-container">Management Dashboard</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <button onClick={() => setShowCodes(true)}
+            className="px-3 py-1.5 bg-secondary-fixed text-on-secondary-fixed rounded-lg text-xs font-bold flex items-center gap-1 active:scale-95">
+            <span className="material-symbols-outlined text-[16px]">vpn_key</span>
+            Invite Codes
+          </button>
+          <button onClick={() => setAuthed(false)}
+            className="px-3 py-1.5 border border-on-primary-container text-on-primary-container rounded-lg text-xs font-bold active:scale-95">
+            Sign Out
+          </button>
+        </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+        {/* Stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard icon="group"             label="Total Users"         value={users.length}           color="bg-secondary-container" />
+          <StatCard icon="account_balance"   label="Total Funds"         value={fmt(totalBalance)}      color="bg-primary-fixed" />
+          <StatCard icon="person_add"        label="New Today"           value={todayUsers}             color="bg-tertiary-fixed" />
+          <StatCard icon="block"             label="Billing Mode"        value={billingCount}           color="bg-error-container" />
+        </div>
+
+        {/* Users Table */}
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+          {/* Table Header */}
+          <div className="p-4 border-b border-outline-variant flex flex-col md:flex-row gap-3 items-start md:items-center justify-between">
+            <h2 className="font-hanken text-xl font-bold text-primary">All Users</h2>
+            <div className="flex gap-2 w-full md:w-auto">
+              {/* Search */}
+              <div className="flex items-center bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 gap-2 flex-1 md:w-64">
+                <span className="material-symbols-outlined text-on-surface-variant text-[18px]">search</span>
+                <input className="bg-transparent text-sm outline-none flex-1 placeholder:text-on-surface-variant/50"
+                  placeholder="Search users…" value={search} onChange={e => setSearch(e.target.value)} />
+              </div>
+              {/* Tier filter */}
+              <select className="px-3 py-2 rounded-lg border border-outline-variant text-xs font-bold bg-white focus:outline-none"
+                value={filterTier} onChange={e => setFilterTier(e.target.value)}>
+                {["All","Bronze","Silver","Gold","Platinum"].map(t => <option key={t}>{t}</option>)}
+              </select>
+              <button onClick={fetchUsers} className="p-2 border border-outline-variant rounded-lg hover:bg-surface-container-low active:scale-95">
+                <span className="material-symbols-outlined text-on-surface-variant text-[18px]">refresh</span>
+              </button>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center py-16">
+              <span className="material-symbols-outlined text-primary text-5xl animate-spin">sync</span>
+            </div>
+          ) : (
+            <>
+              {/* Desktop Table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-surface-container-low">
+                    <tr>
+                      {["User","Account Number","Balance","Tier","Status","Txns","Action"].map(h => (
+                        <th key={h} className="px-4 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-wider">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-outline-variant/30">
+                    {filtered.length === 0 ? (
+                      <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-on-surface-variant">No users found</td></tr>
+                    ) : filtered.map(u => (
+                      <tr key={u.id} className="hover:bg-surface-container-low/50 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0 text-on-primary text-xs font-bold">
+                              {u.firstName?.[0]}{u.lastName?.[0]}
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-primary">{u.fullName}</p>
+                              <p className="text-xs text-on-surface-variant">{u.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-xs font-mono text-on-surface-variant">{u.accountNumber}</td>
+                        <td className="px-4 py-3 text-sm font-bold text-primary">{fmt(u.balance, u.currencySymbol)}</td>
+                        <td className="px-4 py-3">
+                          <span className="px-2 py-0.5 bg-secondary-container text-on-secondary-container rounded-full text-xs font-bold">{u.accountType}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${u.billingMode ? "bg-error-container text-on-error-container" : "bg-green-100 text-green-700"}`}>
+                            {u.billingMode ? "Restricted" : "Active"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-on-surface-variant">{(u.transactions || []).length}</td>
+                        <td className="px-4 py-3">
+                          <button onClick={() => setSelectedUser(u)}
+                            className="px-3 py-1.5 bg-primary text-on-primary rounded-lg text-xs font-bold active:scale-95 hover:opacity-90">
+                            Manage
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Cards */}
+              <div className="md:hidden p-4 space-y-3">
+                {filtered.map(u => (
+                  <div key={u.id} className="border border-outline-variant rounded-xl p-4 space-y-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-sm font-bold text-primary">{u.fullName}</p>
+                        <p className="text-xs text-on-surface-variant">{u.email}</p>
+                        <p className="text-xs font-mono text-on-surface-variant mt-0.5">{u.accountNumber}</p>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${u.billingMode ? "bg-error-container text-on-error-container" : "bg-green-100 text-green-700"}`}>
+                        {u.billingMode ? "Restricted" : "Active"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="font-hanken text-lg font-bold text-primary">{fmt(u.balance, u.currencySymbol)}</span>
+                      <button onClick={() => setSelectedUser(u)}
+                        className="px-3 py-1.5 bg-primary text-on-primary rounded-lg text-xs font-bold active:scale-95">
+                        Manage
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="px-4 py-3 border-t border-outline-variant bg-surface-container-lowest">
+                <p className="text-xs text-on-surface-variant">Showing {filtered.length} of {users.length} users</p>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Modals */}
+      {selectedUser && (
+        <UserModal
+          user={selectedUser}
+          onClose={() => setSelectedUser(null)}
+          onUpdate={() => { fetchUsers(); setSelectedUser(null); }}
+        />
+      )}
+      {showCodes && <CodesPanel onClose={() => setShowCodes(false)} />}
+    </div>
+  );
+}
