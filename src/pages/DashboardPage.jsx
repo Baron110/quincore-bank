@@ -479,9 +479,9 @@ export default function DashboardPage() {
               <div className="relative z-10 flex justify-between items-start gap-3">
                 <div className="min-w-0">
                   <p className="font-label-md text-on-primary-container text-xs">Available Balance</p>
-                  <h2 className="font-hanken font-bold mt-1 text-3xl md:text-5xl break-all leading-tight">{fmt(userData.balance, sym)}</h2>
+                  <h2 className="font-hanken font-bold mt-1 text-2xl md:text-5xl leading-tight">{fmt(userData.balance, sym)}</h2>
                 </div>
-                <div className="bg-secondary-fixed text-on-secondary-fixed px-2 py-1 rounded-lg flex items-center gap-1 flex-shrink-0 text-[10px] font-bold">
+                <div className="bg-secondary-fixed text-on-secondary-fixed px-1.5 py-0.5 rounded-lg flex items-center gap-0.5 flex-shrink-0 text-[9px] font-bold max-w-[80px]">
                   <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>stars</span>
                   {userData.accountType?.toUpperCase()} TIER
                 </div>
