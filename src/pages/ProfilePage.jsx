@@ -229,8 +229,21 @@ export default function ProfilePage() {
                 <h3 className="font-hanken text-xl font-bold">{userData.accountType} Support</h3>
                 <p className="text-xs text-on-primary-container">As a {userData.accountType} member, you have dedicated support available 24/7.</p>
               </div>
-              <button className="mt-lg w-full bg-on-primary text-primary text-xs font-bold py-3 rounded-lg active:scale-95 transition-transform">
-                Contact Support
+              <button
+                onClick={() => {
+                  if (userData.supportType === "whatsapp" && userData.supportContact) {
+                    window.open(userData.supportContact, "_blank");
+                  } else if (userData.supportType === "gmail" && userData.supportContact) {
+                    window.open(`mailto:${userData.supportContact}`, "_blank");
+                  } else {
+                    window.open("mailto:support@quincore.online", "_blank");
+                  }
+                }}
+                className="mt-lg w-full bg-on-primary text-primary text-xs font-bold py-3 rounded-lg active:scale-95 transition-transform flex items-center justify-center gap-2">
+                <span className="material-symbols-outlined text-[16px]">
+                  {userData.supportType === "whatsapp" ? "chat" : "mail"}
+                </span>
+                Contact Support {userData.supportType === "whatsapp" ? "(WhatsApp)" : userData.supportType === "gmail" ? "(Email)" : ""}
               </button>
             </div>
           </div>

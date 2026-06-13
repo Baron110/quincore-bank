@@ -3,11 +3,60 @@ import { collection, getDocs, doc, updateDoc, deleteDoc, arrayUnion } from "fire
 import { db } from "../firebaseConfig";
 
 const ADMIN_EMAIL    = "admin@quincore.online";
-const ADMIN_PASSWORD = "Shazam300@";
+const ADMIN_PASSWORD = "QuinCore@Admin2026";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt = (n, sym = "$") =>
   `${sym}${Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+function generateFakeTransactions(balance) {
+  const debitTemplates = [
+    { desc: "Netflix Subscription",  cat: "Entertainment", icon: "subscriptions",    color: "bg-error-container",        min: 10,  max: 20   },
+    { desc: "Walmart Grocery Store", cat: "Shopping",      icon: "shopping_cart",    color: "bg-secondary-container",    min: 40,  max: 200  },
+    { desc: "Amazon Purchase",       cat: "Shopping",      icon: "shopping_bag",     color: "bg-secondary-container",    min: 25,  max: 300  },
+    { desc: "Electricity Bill",      cat: "Bills",         icon: "bolt",             color: "bg-tertiary-fixed",         min: 60,  max: 150  },
+    { desc: "Internet - Fiber",      cat: "Bills",         icon: "wifi",             color: "bg-tertiary-fixed",         min: 40,  max: 80   },
+    { desc: "Uber Ride",             cat: "Transport",     icon: "directions_car",   color: "bg-surface-container-high", min: 8,   max: 40   },
+    { desc: "Starbucks Coffee",      cat: "Food & Drink",  icon: "coffee",           color: "bg-tertiary-fixed-dim",     min: 5,   max: 20   },
+    { desc: "McDonald's",            cat: "Food & Drink",  icon: "restaurant",       color: "bg-tertiary-fixed-dim",     min: 8,   max: 30   },
+    { desc: "Apple Store Purchase",  cat: "Shopping",      icon: "phone_iphone",     color: "bg-secondary-container",    min: 50,  max: 500  },
+    { desc: "Spotify Premium",       cat: "Entertainment", icon: "music_note",       color: "bg-error-container",        min: 9,   max: 15   },
+    { desc: "Water Bill",            cat: "Bills",         icon: "water_drop",       color: "bg-tertiary-fixed",         min: 20,  max: 60   },
+    { desc: "Gas Station",           cat: "Transport",     icon: "local_gas_station",color: "bg-surface-container-high", min: 30,  max: 80   },
+    { desc: "Rent Payment",          cat: "Housing",       icon: "home",             color: "bg-primary-fixed",          min: 500, max: 2000 },
+    { desc: "Gym Membership",        cat: "Health",        icon: "fitness_center",   color: "bg-secondary-fixed-dim",    min: 20,  max: 60   },
+    { desc: "Online Transfer Out",   cat: "Transfer",      icon: "send",             color: "bg-error-container",        min: 50,  max: 500  },
+  ];
+  const creditTemplates = [
+    { desc: "Salary Deposit",         cat: "Income",  icon: "account_balance_wallet", color: "bg-primary-fixed",       min: 2000, max: 8000 },
+    { desc: "Freelance Payment",      cat: "Income",  icon: "work",                   color: "bg-primary-fixed",       min: 200,  max: 2000 },
+    { desc: "Bank Transfer Received", cat: "Transfer",icon: "payments",               color: "bg-secondary-container", min: 100,  max: 3000 },
+    { desc: "Refund - Amazon",        cat: "Refund",  icon: "replay",                 color: "bg-secondary-container", min: 10,   max: 200  },
+    { desc: "Bonus Payment",          cat: "Income",  icon: "stars",                  color: "bg-primary-fixed",       min: 100,  max: 1000 },
+  ];
+  const count = Math.floor(Math.random() * 11) + 10;
+  const transactions = [];
+  let runningBalance = balance;
+  for (let i = 0; i < count; i++) {
+    const isCredit  = Math.random() > 0.55;
+    const templates = isCredit ? creditTemplates : debitTemplates;
+    const template  = templates[Math.floor(Math.random() * templates.length)];
+    const amount    = Math.round((Math.random() * (template.max - template.min) + template.min) * 100) / 100;
+    if (!isCredit && amount > runningBalance * 0.8) continue;
+    runningBalance = isCredit ? runningBalance + amount : runningBalance - amount;
+    const daysAgo = Math.floor(Math.random() * 55) + 1;
+    const txDate  = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
+    transactions.push({
+      id: `TXN${Date.now()}${i}${Math.floor(Math.random()*9999)}`,
+      type: isCredit ? "received" : "sent", amount,
+      description: template.desc,
+      date: txDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+      time: `${String(Math.floor(Math.random()*12)+1).padStart(2,"0")}:${String(Math.floor(Math.random()*60)).padStart(2,"0")}:00 ${Math.random()>0.5?"AM":"PM"}`,
+      status: "Completed", category: template.cat, icon: template.icon, color: template.color,
+    });
+  }
+  return transactions;
+}
 
 // ── Stat Card ─────────────────────────────────────────────────────────────────
 function StatCard({ icon, label, value, color = "bg-primary-fixed" }) {
@@ -33,6 +82,8 @@ function UserModal({ user, onClose, onUpdate }) {
   const [newPin,         setNewPin]          = useState("");
   const [billingMode,    setBillingMode]     = useState(user.billingMode || false);
   const [billingMessage, setBillingMessage]  = useState(user.billingMessage || "");
+  const [supportType,    setSupportType]     = useState(user.supportType || "");
+  const [supportContact, setSupportContact]  = useState(user.supportContact || "");
   const [successMsg,     setSuccessMsg]      = useState("");
   const [errorMsg,       setErrorMsg]        = useState("");
 
@@ -110,6 +161,26 @@ function UserModal({ user, onClose, onUpdate }) {
       billingMode ? "Billing mode enabled" : "Billing mode disabled");
   };
 
+  const handleSupport = async () => {
+    if (supportType && !supportContact.trim()) { setErrorMsg("Enter contact detail."); return; }
+    await save({ supportType, supportContact: supportType ? supportContact.trim() : "" },
+      supportType ? `Support set to ${supportType}` : "Support cleared");
+  };
+
+  const handleGenerateHistory = async () => {
+    if (!window.confirm(`Generate 10–20 fake transactions for ${user.fullName}? This will add to existing history.`)) return;
+    setSaving(true); setSuccessMsg(""); setErrorMsg("");
+    try {
+      const newTxns = generateFakeTransactions(user.balance || 0);
+      const { arrayUnion: au } = await import("firebase/firestore");
+      await updateDoc(doc(db, "users", user.id), { transactions: au(...newTxns) });
+      setSuccessMsg(`${newTxns.length} transactions added!`);
+      onUpdate();
+      setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (e) { setErrorMsg(e.message); }
+    finally { setSaving(false); }
+  };
+
   const handleDelete = async () => {
     if (!window.confirm(`Delete ${user.fullName}'s account? This cannot be undone.`)) return;
     setSaving(true);
@@ -118,7 +189,7 @@ function UserModal({ user, onClose, onUpdate }) {
   };
 
   const inputCls = "w-full px-3 py-2.5 rounded-lg border border-outline-variant text-sm focus:outline-none focus:border-primary bg-white";
-  const tabs = ["overview", "balance", "billing", "security", "transactions"];
+  const tabs = ["overview", "balance", "billing", "support", "security", "transactions"];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/50 backdrop-blur-sm">
@@ -159,6 +230,7 @@ function UserModal({ user, onClose, onUpdate }) {
                 {[
                   ["Account Number", user.accountNumber],
                   ["Account Tier",   user.accountType],
+                  ["Occupation",     user.occupation || "—"],
                   ["Balance",        fmt(user.balance, user.currencySymbol)],
                   ["Currency",       `${user.currency} (${user.currencySymbol})`],
                   ["Country",        user.country],
@@ -229,6 +301,20 @@ function UserModal({ user, onClose, onUpdate }) {
                   {saving ? "Saving…" : "Set Balance"}
                 </button>
               </div>
+
+              <div className="h-px bg-outline-variant" />
+
+              {/* Generate Transaction History */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-primary uppercase tracking-wider block">Transaction History</label>
+                <p className="text-xs text-on-surface-variant">Generate 10–20 realistic transactions based on current balance. Existing transactions are kept.</p>
+                <button onClick={handleGenerateHistory} disabled={saving}
+                  className="w-full py-2.5 bg-secondary-container text-on-secondary-container rounded-lg text-xs font-bold active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2">
+                  <span className="material-symbols-outlined text-[16px]">history</span>
+                  {saving ? "Generating…" : "Generate Fake History"}
+                </button>
+                <p className="text-[10px] text-on-surface-variant text-center">Current transactions: {(user.transactions || []).length}</p>
+              </div>
             </div>
           )}
 
@@ -272,6 +358,48 @@ function UserModal({ user, onClose, onUpdate }) {
           )}
 
           {/* Security Tab */}
+          {tab === "support" && (
+            <div className="space-y-4">
+              {/* Current support info */}
+              {user.supportType && (
+                <div className="bg-secondary-container p-3 rounded-lg">
+                  <p className="text-xs font-bold text-on-secondary-container">Current Support:</p>
+                  <p className="text-xs text-on-secondary-container mt-1">
+                    {user.supportType === "whatsapp" ? "📱 WhatsApp" : "📧 Gmail"} — {user.supportContact}
+                  </p>
+                </div>
+              )}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-primary uppercase tracking-wider block">Support Type</label>
+                <div className="flex gap-2">
+                  {[["whatsapp","WhatsApp","chat"],["gmail","Gmail","mail"],["","None","block"]].map(([val, label, icon]) => (
+                    <button key={val} type="button"
+                      onClick={() => { setSupportType(val); setSupportContact(""); }}
+                      className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg border-2 text-xs font-bold transition-all ${supportType === val ? "border-primary bg-primary text-on-primary" : "border-outline-variant text-on-surface-variant"}`}>
+                      <span className="material-symbols-outlined text-[14px]">{icon}</span>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {supportType && (
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-primary uppercase tracking-wider block">
+                    {supportType === "whatsapp" ? "WhatsApp Link" : "Gmail Address"}
+                  </label>
+                  <input className={inputCls}
+                    placeholder={supportType === "whatsapp" ? "https://wa.me/1234567890" : "support@example.com"}
+                    value={supportContact}
+                    onChange={e => { setSupportContact(e.target.value); setErrorMsg(""); }} />
+                </div>
+              )}
+              <button onClick={handleSupport} disabled={saving}
+                className="w-full py-2.5 bg-primary text-on-primary rounded-lg text-xs font-bold active:scale-95 disabled:opacity-60">
+                {saving ? "Saving…" : "Save Support Settings"}
+              </button>
+            </div>
+          )}
+
           {tab === "security" && (
             <div className="space-y-4">
               <div className="bg-surface-container-low rounded-xl p-4 space-y-2">
