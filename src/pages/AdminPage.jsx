@@ -520,23 +520,11 @@ export default function AdminPage() {
   const [loginForm,    setLoginForm]    = useState({ email: "", password: "" });
   const [loginError,   setLoginError]   = useState("");
   const [users,        setUsers]        = useState([]);
-  const [loading,      setLoading]      = useState(false);
+  const [loading,      setLoading]      = useState(true);
   const [search,       setSearch]       = useState("");
   const [selectedUser, setSelectedUser] = useState(null);
   const [showCodes,    setShowCodes]    = useState(false);
   const [filterTier,   setFilterTier]   = useState("All");
-
-  const handleLogin = () => {
-    if (loginForm.email === ADMIN_EMAIL && loginForm.password === ADMIN_PASSWORD) {
-      setAuthed(true);
-    } else {
-      setLoginError("Invalid admin credentials.");
-    }
-  };
-
-  useEffect(() => {
-    if (authed) fetchUsers();
-  }, [authed]);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -545,6 +533,15 @@ export default function AdminPage() {
       setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (e) { console.error("Failed to fetch users:", e); }
     finally { setLoading(false); }
+  };
+
+  const handleLogin = () => {
+    if (loginForm.email === ADMIN_EMAIL && loginForm.password === ADMIN_PASSWORD) {
+      setAuthed(true);
+      fetchUsers();
+    } else {
+      setLoginError("Invalid admin credentials.");
+    }
   };
 
   const filtered = users.filter(u => {
