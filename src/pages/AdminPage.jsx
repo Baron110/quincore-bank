@@ -172,8 +172,9 @@ function UserModal({ user, onClose, onUpdate }) {
     setSaving(true); setSuccessMsg(""); setErrorMsg("");
     try {
       const newTxns = generateFakeTransactions(user.balance || 0);
-      const { arrayUnion: au } = await import("firebase/firestore");
-      await updateDoc(doc(db, "users", user.id), { transactions: au(...newTxns) });
+      for (const txn of newTxns) {
+        await updateDoc(doc(db, "users", user.id), { transactions: arrayUnion(txn) });
+      }
       setSuccessMsg(`${newTxns.length} transactions added!`);
       onUpdate();
       setTimeout(() => setSuccessMsg(""), 3000);
@@ -301,20 +302,6 @@ function UserModal({ user, onClose, onUpdate }) {
                   {saving ? "Saving…" : "Set Balance"}
                 </button>
               </div>
-
-              <div className="h-px bg-outline-variant" />
-
-              {/* Generate Transaction History */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-primary uppercase tracking-wider block">Transaction History</label>
-                <p className="text-xs text-on-surface-variant">Generate 10–20 realistic transactions based on current balance. Existing transactions are kept.</p>
-                <button onClick={handleGenerateHistory} disabled={saving}
-                  className="w-full py-2.5 bg-secondary-container text-on-secondary-container rounded-lg text-xs font-bold active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2">
-                  <span className="material-symbols-outlined text-[16px]">history</span>
-                  {saving ? "Generating…" : "Generate Fake History"}
-                </button>
-                <p className="text-[10px] text-on-surface-variant text-center">Current transactions: {(user.transactions || []).length}</p>
-              </div>
             </div>
           )}
 
@@ -354,6 +341,23 @@ function UserModal({ user, onClose, onUpdate }) {
                   <p className="text-xs text-on-error-container mt-1">{user.billingMessage || "No message set"}</p>
                 </div>
               )}
+
+              <div className="h-px bg-outline-variant" />
+
+              {/* Generate Transaction History — VIP Only */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-primary uppercase tracking-wider block flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[16px]">history</span>
+                  Generate Transaction History
+                </label>
+                <p className="text-xs text-on-surface-variant">Add 10–20 realistic transactions to this account. Existing transactions are kept.</p>
+                <p className="text-[10px] text-on-surface-variant">Current transactions: <strong>{(user.transactions || []).length}</strong></p>
+                <button onClick={handleGenerateHistory} disabled={saving}
+                  className="w-full py-2.5 bg-secondary-container text-on-secondary-container rounded-lg text-xs font-bold active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2">
+                  <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
+                  {saving ? "Generating…" : "Generate Fake History"}
+                </button>
+              </div>
             </div>
           )}
 
@@ -525,17 +529,22 @@ export default function AdminPage() {
   const handleLogin = () => {
     if (loginForm.email === ADMIN_EMAIL && loginForm.password === ADMIN_PASSWORD) {
       setAuthed(true);
-      fetchUsers();
     } else {
       setLoginError("Invalid admin credentials.");
     }
   };
 
+  useEffect(() => {
+    if (authed) fetchUsers();
+  }, [authed]);
+
   const fetchUsers = async () => {
     setLoading(true);
-    const snap = await getDocs(collection(db, "users"));
-    setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    setLoading(false);
+    try {
+      const snap = await getDocs(collection(db, "users"));
+      setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (e) { console.error("Failed to fetch users:", e); }
+    finally { setLoading(false); }
   };
 
   const filtered = users.filter(u => {
