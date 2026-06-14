@@ -514,6 +514,221 @@ function CodesPanel({ onClose }) {
   );
 }
 
+// ── Loans Panel ───────────────────────────────────────────────────────────────
+function LoansPanel({ users, onClose, onUpdate }) {
+  const [selected, setSelected] = useState(null);
+  const [saving,   setSaving]   = useState("");
+  const [reason,   setReason]   = useState("");
+
+  const allLoans = users.flatMap(u =>
+    (u.loanApplications || []).map(loan => ({ ...loan, userData: u }))
+  ).sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+
+  const pending  = allLoans.filter(l => l.status === "Pending").length;
+  const approved = allLoans.filter(l => l.status === "Approved").length;
+  const rejected = allLoans.filter(l => l.status === "Rejected").length;
+
+  const updateLoanStatus = async (loan, status) => {
+    setSaving(loan.id);
+    try {
+      const user     = users.find(u => u.id === loan.userId);
+      const newLoans = (user.loanApplications || []).map(l =>
+        l.id === loan.id ? { ...l, status, rejectionReason: reason, reviewedAt: new Date().toISOString() } : l
+      );
+      const updates = { loanApplications: newLoans };
+      if (status === "Approved") {
+        updates.balance = (user.balance || 0) + loan.loanAmount;
+        updates.transactions = [...(user.transactions || []), {
+          id: `LOAN${Date.now()}`, type: "deposit", amount: loan.loanAmount,
+          description: `Loan Approved — ${loan.loanPurpose}`,
+          date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+          time: new Date().toLocaleTimeString(),
+          status: "Completed", category: "Income",
+          icon: "account_balance", color: "bg-primary-fixed",
+        }];
+      }
+      await updateDoc(doc(db, "users", loan.userId), updates);
+      onUpdate();
+      setSelected(null); setReason("");
+    } finally { setSaving(""); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/50 backdrop-blur-sm">
+      <div className="bg-surface-container-lowest w-full max-w-2xl rounded-xl shadow-xl border border-outline-variant overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="bg-primary text-on-primary px-6 py-4 flex justify-between items-center flex-shrink-0">
+          <div>
+            <p className="font-hanken text-lg font-bold">Loan Applications</p>
+            <p className="text-xs text-on-primary-container">{pending} pending · {approved} approved · {rejected} rejected</p>
+          </div>
+          <button onClick={onClose} className="material-symbols-outlined">close</button>
+        </div>
+
+        {selected ? (
+          <div className="overflow-y-auto flex-1 p-4 space-y-4">
+            <button onClick={() => { setSelected(null); setReason(""); }} className="flex items-center gap-1 text-xs font-bold text-primary">
+              <span className="material-symbols-outlined text-[16px]">arrow_back</span> Back to list
+            </button>
+
+            <div className="bg-primary-container rounded-xl p-4 text-on-primary">
+              <p className="font-hanken text-lg font-bold">{selected.userData.fullName}</p>
+              <p className="text-xs text-on-primary-container">{selected.userData.email} · {selected.userData.accountNumber}</p>
+              <div className="grid grid-cols-2 gap-2 mt-3">
+                {[
+                  ["Loan Amount", `${selected.currencySymbol}${selected.loanAmount?.toLocaleString()}`],
+                  ["Purpose", selected.loanPurpose],
+                  ["Period", `${selected.repaymentPeriod} months`],
+                  ["Monthly Payment", `${selected.currencySymbol}${selected.monthlyPayment}`],
+                ].map(([l,v]) => (
+                  <div key={l}>
+                    <p className="text-[10px] text-on-primary-container">{l}</p>
+                    <p className="text-sm font-bold">{v}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3">
+              {[
+                ["Personal", [
+                  ["SSN", selected.ssn],
+                  ["Gender", selected.gender],
+                  ["Marital Status", selected.maritalStatus],
+                  ["Dependants", selected.dependants],
+                  ["City/State", `${selected.city}, ${selected.state} ${selected.zipCode}`],
+                  ["Time at Address", selected.timeAtAddress],
+                ]],
+                ["Contact", [
+                  ["Phone", selected.phone],
+                  ["Email", selected.email],
+                  ["Mailing Address", selected.mailingAddress],
+                  ["Preferred Contact", selected.preferredContact],
+                ]],
+                ["Employment", [
+                  ["Status", selected.employmentStatus],
+                  ["Employer", selected.employerName],
+                  ["Job Title", selected.jobTitle],
+                  ["Work Address", selected.workAddress],
+                  ["Monthly Income", `${selected.currencySymbol}${parseFloat(selected.monthlyIncome||0).toLocaleString()}`],
+                  ["Monthly Expenses", `${selected.currencySymbol}${parseFloat(selected.monthlyExpenses||0).toLocaleString()}`],
+                  ["Existing Loans", selected.existingLoans],
+                ]],
+                ["ID & Documents", [
+                  ["ID Type", selected.idType],
+                  ["ID Number", selected.idNumber],
+                  ["ID Expiry", selected.idExpiry],
+                ]],
+                ["Next of Kin", [
+                  ["Name", selected.kinName],
+                  ["Relationship", selected.kinRelationship],
+                  ["Phone", selected.kinPhone],
+                  ["Email", selected.kinEmail],
+                  ["Address", selected.kinAddress],
+                ]],
+              ].map(([section, fields]) => (
+                <div key={section} className="bg-surface-container-low rounded-xl p-3">
+                  <p className="text-xs font-bold text-primary uppercase tracking-wider mb-2">{section}</p>
+                  <div className="space-y-1">
+                    {fields.map(([label, val]) => val ? (
+                      <div key={label} className="flex justify-between">
+                        <span className="text-xs text-on-surface-variant">{label}</span>
+                        <span className="text-xs font-bold text-primary text-right max-w-[55%]">{val}</span>
+                      </div>
+                    ) : null)}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Document Images */}
+            {(selected.idFront || selected.idBack || selected.selfieWithId || selected.proofOfAddress || selected.proofOfIncome) && (
+              <div className="bg-surface-container-low rounded-xl p-3">
+                <p className="text-xs font-bold text-primary uppercase tracking-wider mb-3">Uploaded Documents</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    ["ID Front",        selected.idFront],
+                    ["ID Back",         selected.idBack],
+                    ["Selfie with ID",  selected.selfieWithId],
+                    ["Proof of Address",selected.proofOfAddress],
+                    ["Proof of Income", selected.proofOfIncome],
+                  ].filter(([,v]) => v).map(([label, src]) => (
+                    <div key={label}>
+                      <p className="text-[10px] font-bold text-on-surface-variant mb-1">{label}</p>
+                      <img src={src} alt={label} className="w-full rounded-lg border border-outline-variant object-cover max-h-32 cursor-pointer"
+                        onClick={() => window.open(src, "_blank")} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Approval Actions */}
+            {selected.status === "Pending" && (
+              <div className="space-y-3 pt-2">
+                <div>
+                  <label className="text-xs font-bold text-primary block mb-1">Rejection Reason (if rejecting)</label>
+                  <input className="w-full px-3 py-2.5 rounded-lg border border-outline-variant text-sm focus:outline-none bg-white"
+                    placeholder="Optional reason for rejection"
+                    value={reason} onChange={e => setReason(e.target.value)} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <button onClick={() => updateLoanStatus(selected, "Approved")} disabled={!!saving}
+                    className="py-3 bg-green-600 text-white rounded-lg text-xs font-bold active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2">
+                    <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                    {saving === selected.id ? "Processing…" : `Approve & Fund ${selected.currencySymbol}${selected.loanAmount?.toLocaleString()}`}
+                  </button>
+                  <button onClick={() => updateLoanStatus(selected, "Rejected")} disabled={!!saving}
+                    className="py-3 bg-error text-on-error rounded-lg text-xs font-bold active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2">
+                    <span className="material-symbols-outlined text-[16px]">cancel</span>
+                    {saving === selected.id ? "Processing…" : "Reject"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {selected.status !== "Pending" && (
+              <div className={`p-3 rounded-lg ${selected.status === "Approved" ? "bg-green-100" : "bg-error-container"}`}>
+                <p className={`text-xs font-bold ${selected.status === "Approved" ? "text-green-700" : "text-on-error-container"}`}>
+                  {selected.status === "Approved" ? "✅ Loan Approved — Funds disbursed to account" : `❌ Loan Rejected${selected.rejectionReason ? ` — ${selected.rejectionReason}` : ""}`}
+                </p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="overflow-y-auto flex-1 p-4 space-y-3">
+            {allLoans.length === 0 ? (
+              <div className="text-center py-12">
+                <span className="material-symbols-outlined text-on-surface-variant text-[48px]">account_balance</span>
+                <p className="text-sm text-on-surface-variant mt-2">No loan applications yet</p>
+              </div>
+            ) : allLoans.map(loan => (
+              <div key={loan.id} className="border border-outline-variant rounded-xl p-4 cursor-pointer hover:bg-surface-container-low transition-colors"
+                onClick={() => setSelected(loan)}>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-sm font-bold text-primary">{loan.userData.fullName}</p>
+                    <p className="text-xs text-on-surface-variant">{loan.userData.email}</p>
+                    <p className="text-xs text-on-surface-variant mt-1">{loan.loanPurpose} · {loan.repaymentPeriod} months</p>
+                    <p className="text-[10px] text-on-surface-variant">{new Date(loan.submittedAt).toLocaleDateString()}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-primary">{loan.currencySymbol}{loan.loanAmount?.toLocaleString()}</p>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      loan.status === "Approved" ? "bg-green-100 text-green-700" :
+                      loan.status === "Rejected" ? "bg-error-container text-on-error-container" :
+                      "bg-amber-100 text-amber-700"
+                    }`}>{loan.status}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Admin Page ───────────────────────────────────────────────────────────
 export default function AdminPage() {
   const [authed,       setAuthed]       = useState(false);
@@ -524,6 +739,7 @@ export default function AdminPage() {
   const [search,       setSearch]       = useState("");
   const [selectedUser, setSelectedUser] = useState(null);
   const [showCodes,    setShowCodes]    = useState(false);
+  const [showLoans,    setShowLoans]    = useState(false);
   const [filterTier,   setFilterTier]   = useState("All");
 
   const fetchUsers = async () => {
@@ -607,6 +823,12 @@ export default function AdminPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button onClick={() => setShowLoans(true)}
+              className="px-2 py-1.5 bg-green-600 text-white rounded-lg text-[10px] font-bold flex items-center gap-1 active:scale-95">
+              <span className="material-symbols-outlined text-[14px]">account_balance</span>
+              <span className="hidden sm:inline">Loan Apps</span>
+              <span className="sm:hidden">Loans</span>
+            </button>
             <button onClick={() => setShowCodes(true)}
               className="px-2 py-1.5 bg-secondary-fixed text-on-secondary-fixed rounded-lg text-[10px] font-bold flex items-center gap-1 active:scale-95">
               <span className="material-symbols-outlined text-[14px]">vpn_key</span>
@@ -750,6 +972,7 @@ export default function AdminPage() {
         />
       )}
       {showCodes && <CodesPanel onClose={() => setShowCodes(false)} />}
+      {showLoans && <LoansPanel users={users} onClose={() => setShowLoans(false)} onUpdate={fetchUsers} />}
     </div>
   );
 }

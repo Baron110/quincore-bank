@@ -4,6 +4,7 @@ import { signOut } from "firebase/auth";
 import { db, auth } from "../firebaseConfig";
 import { useUserData } from "../hooks/useUserData";
 import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import MobileNav from "../components/MobileNav";
 import Header from "../components/Header";
@@ -264,6 +265,39 @@ export default function ProfilePage() {
             </button>
           </div>
 
+          {/* Loan Application Button */}
+          <button onClick={() => navigate("/loan")}
+            className="w-full bg-secondary-fixed text-on-secondary-fixed text-xs font-bold px-6 py-4 rounded-xl active:scale-95 transition-transform flex items-center justify-center gap-2 shadow-sm">
+            <span className="material-symbols-outlined text-[18px]">account_balance</span>
+            Apply for a Loan
+          </button>
+
+          {/* Existing Loan Applications */}
+          {(userData.loanApplications || []).length > 0 && (
+            <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-outline-variant bg-surface-container-low">
+                <h3 className="text-sm font-bold text-primary">My Loan Applications</h3>
+              </div>
+              <div className="p-4 space-y-3">
+                {[...(userData.loanApplications || [])].reverse().map((loan, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 bg-surface-container-low rounded-lg">
+                    <div>
+                      <p className="text-xs font-bold text-primary">{loan.loanPurpose} Loan</p>
+                      <p className="text-[10px] text-on-surface-variant">{userData.currencySymbol}{loan.loanAmount?.toLocaleString()} · {loan.repaymentPeriod} months</p>
+                      <p className="text-[10px] text-on-surface-variant">{new Date(loan.submittedAt).toLocaleDateString()}</p>
+                    </div>
+                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${
+                      loan.status === "Approved" ? "bg-green-100 text-green-700" :
+                      loan.status === "Rejected" ? "bg-error-container text-on-error-container" :
+                      "bg-amber-100 text-amber-700"
+                    }`}>
+                      {loan.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
