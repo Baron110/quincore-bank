@@ -514,6 +514,141 @@ function CodesPanel({ onClose }) {
   );
 }
 
+// ── Verify Panel ──────────────────────────────────────────────────────────────
+function VerifyPanel({ users, onClose, onUpdate }) {
+  const [saving, setSaving] = useState("");
+  const [selected, setSelected] = useState(null);
+
+  const pendingVerifications = users.filter(u => u.verificationRequest?.status === "Pending");
+  const verifiedUsers = users.filter(u => u.verified);
+
+  const handleVerify = async (user, approve) => {
+    setSaving(user.id);
+    try {
+      await updateDoc(doc(db, "users", user.id), {
+        verified: approve,
+        verificationRequest: {
+          ...user.verificationRequest,
+          status: approve ? "Approved" : "Rejected",
+          reviewedAt: new Date().toISOString(),
+        },
+      });
+      onUpdate();
+      setSelected(null);
+    } finally { setSaving(""); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/50 backdrop-blur-sm">
+      <div className="bg-surface-container-lowest w-full max-w-xl rounded-xl shadow-xl border border-outline-variant overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="bg-primary text-on-primary px-6 py-4 flex justify-between items-center flex-shrink-0">
+          <div>
+            <p className="font-hanken text-lg font-bold">Verification Requests</p>
+            <p className="text-xs text-on-primary-container">{pendingVerifications.length} pending · {verifiedUsers.length} verified</p>
+          </div>
+          <button onClick={onClose} className="material-symbols-outlined">close</button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 p-4 space-y-3">
+          {selected ? (
+            <div className="space-y-4">
+              <button onClick={() => setSelected(null)} className="flex items-center gap-1 text-xs font-bold text-primary">
+                <span className="material-symbols-outlined text-[16px]">arrow_back</span> Back
+              </button>
+              <div className="bg-surface-container-low rounded-xl p-4 space-y-2">
+                <p className="text-xs font-bold text-primary uppercase tracking-wider mb-2">Applicant Details</p>
+                {[
+                  ["Full Name", selected.fullName],
+                  ["Legal Name", selected.verificationRequest?.legalName],
+                  ["Email", selected.email],
+                  ["Date of Birth", selected.dateOfBirth],
+                  ["Country", selected.country],
+                  ["ID Type", selected.verificationRequest?.idType],
+                  ["ID Number", selected.verificationRequest?.idNumber],
+                  ["Submitted", new Date(selected.verificationRequest?.submittedAt).toLocaleDateString()],
+                ].map(([label, val]) => val ? (
+                  <div key={label} className="flex justify-between">
+                    <span className="text-xs text-on-surface-variant">{label}</span>
+                    <span className="text-xs font-bold text-primary text-right max-w-[55%]">{val}</span>
+                  </div>
+                ) : null)}
+              </div>
+
+              {/* Document Images */}
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  ["ID Photo", selected.verificationRequest?.idPhoto],
+                  ["Selfie with ID", selected.verificationRequest?.selfie],
+                ].filter(([, v]) => v).map(([label, src]) => (
+                  <div key={label}>
+                    <p className="text-[10px] font-bold text-on-surface-variant mb-1">{label}</p>
+                    <img src={src} alt={label} className="w-full rounded-lg border border-outline-variant object-cover max-h-40 cursor-pointer"
+                      onClick={() => window.open(src, "_blank")} />
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <button onClick={() => handleVerify(selected, true)} disabled={!!saving}
+                  className="py-3 bg-blue-600 text-white rounded-lg text-xs font-bold active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2">
+                  <span className="material-symbols-outlined text-[16px]">verified</span>
+                  {saving === selected.id ? "Processing…" : "Approve & Verify"}
+                </button>
+                <button onClick={() => handleVerify(selected, false)} disabled={!!saving}
+                  className="py-3 bg-error text-on-error rounded-lg text-xs font-bold active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2">
+                  <span className="material-symbols-outlined text-[16px]">cancel</span>
+                  Reject
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {pendingVerifications.length === 0 ? (
+                <div className="text-center py-12">
+                  <span className="material-symbols-outlined text-on-surface-variant text-[48px]">verified</span>
+                  <p className="text-sm text-on-surface-variant mt-2">No pending verification requests</p>
+                </div>
+              ) : pendingVerifications.map(user => (
+                <div key={user.id} className="border border-amber-200 bg-amber-50 rounded-xl p-4 cursor-pointer hover:bg-amber-100 transition-colors"
+                  onClick={() => setSelected(user)}>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-sm font-bold text-primary">{user.fullName}</p>
+                      <p className="text-xs text-on-surface-variant">{user.email}</p>
+                      <p className="text-xs text-on-surface-variant mt-0.5">
+                        {user.verificationRequest?.idType} · Submitted {new Date(user.verificationRequest?.submittedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-1 bg-amber-100 text-amber-700 rounded-full">⏳ Pending</span>
+                  </div>
+                </div>
+              ))}
+
+              {verifiedUsers.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Verified Accounts</p>
+                  {verifiedUsers.map(user => (
+                    <div key={user.id} className="border border-blue-200 bg-blue-50 rounded-xl p-3 mb-2 flex justify-between items-center">
+                      <div>
+                        <p className="text-sm font-bold text-primary">{user.fullName}</p>
+                        <p className="text-xs text-on-surface-variant">{user.email}</p>
+                      </div>
+                      <span className="text-[10px] font-bold px-2 py-1 bg-blue-100 text-blue-700 rounded-full flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
+                        Verified
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Loans Panel ───────────────────────────────────────────────────────────────
 function LoansPanel({ users, onClose, onUpdate }) {
   const [selected, setSelected] = useState(null);
@@ -740,6 +875,7 @@ export default function AdminPage() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [showCodes,    setShowCodes]    = useState(false);
   const [showLoans,    setShowLoans]    = useState(false);
+  const [showVerify,   setShowVerify]   = useState(false);
   const [filterTier,   setFilterTier]   = useState("All");
 
   const fetchUsers = async () => {
@@ -823,6 +959,11 @@ export default function AdminPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button onClick={() => setShowVerify(true)}
+              className="px-2 py-1.5 bg-blue-600 text-white rounded-lg text-[10px] font-bold flex items-center gap-1 active:scale-95">
+              <span className="material-symbols-outlined text-[14px]">verified</span>
+              <span className="hidden sm:inline">Verify</span>
+            </button>
             <button onClick={() => setShowLoans(true)}
               className="px-2 py-1.5 bg-green-600 text-white rounded-lg text-[10px] font-bold flex items-center gap-1 active:scale-95">
               <span className="material-symbols-outlined text-[14px]">account_balance</span>
@@ -973,6 +1114,7 @@ export default function AdminPage() {
       )}
       {showCodes && <CodesPanel onClose={() => setShowCodes(false)} />}
       {showLoans && <LoansPanel users={users} onClose={() => setShowLoans(false)} onUpdate={fetchUsers} />}
+      {showVerify && <VerifyPanel users={users} onClose={() => setShowVerify(false)} onUpdate={fetchUsers} />}
     </div>
   );
 }

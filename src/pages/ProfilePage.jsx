@@ -4,6 +4,7 @@ import { signOut } from "firebase/auth";
 import { db, auth } from "../firebaseConfig";
 import { useUserData } from "../hooks/useUserData";
 import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import MobileNav from "../components/MobileNav";
 import Header from "../components/Header";
@@ -128,6 +129,12 @@ export default function ProfilePage() {
                 <span className="bg-surface-container-high text-on-surface-variant text-xs font-bold px-3 py-1 rounded-full">
                   Verified Identity ✓
                 </span>
+                {userData.verified && (
+                  <span className="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
+                    Verified Account
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -269,6 +276,28 @@ export default function ProfilePage() {
             className="w-full bg-secondary-fixed text-on-secondary-fixed text-xs font-bold px-6 py-4 rounded-xl active:scale-95 transition-transform flex items-center justify-center gap-2 shadow-sm">
             <span className="material-symbols-outlined text-[18px]">account_balance</span>
             Apply for a Loan
+          </button>
+
+          {/* Verification Button */}
+          <button onClick={() => navigate("/verify")}
+            className={`w-full text-xs font-bold px-6 py-4 rounded-xl active:scale-95 transition-transform flex items-center justify-center gap-2 shadow-sm ${
+              userData.verified
+                ? "bg-blue-600 text-white"
+                : userData.verificationRequest?.status === "Pending"
+                ? "bg-amber-100 text-amber-700 border border-amber-300"
+                : "bg-surface-container-lowest border border-outline-variant text-primary"
+            }`}>
+            <span className="material-symbols-outlined text-[18px]">
+              {userData.verified ? "verified" : "pending"}
+            </span>
+            {userData.verified ? "Account Verified ✓" : userData.verificationRequest?.status === "Pending" ? "Verification Pending…" : "Request Verification"}
+          </button>
+
+          {/* Cheque Generator Button */}
+          <button onClick={() => navigate("/cheque")}
+            className="w-full bg-surface-container-lowest border border-outline-variant text-primary text-xs font-bold px-6 py-4 rounded-xl active:scale-95 transition-transform flex items-center justify-center gap-2">
+            <span className="material-symbols-outlined text-[18px]">receipt_long</span>
+            Generate Bank Cheque
           </button>
 
           {/* Existing Loan Applications */}
