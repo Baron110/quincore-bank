@@ -106,12 +106,12 @@ function UserModal({ user, onClose, onUpdate }) {
     await save({ balance: val }, `Balance set to ${fmt(val)}`);
   };
 
-  const handleSetMemberSince = async () => {
-    if (!newMemberSince) { setErrorMsg("Select a date."); return; }
-    await save({
-      createdAt: { seconds: Math.floor(new Date(newMemberSince).getTime() / 1000), nanoseconds: 0 }
-    }, "Member since date updated");
-  };
+ const handleSetMemberSince = async () => {
+  if (!newMemberSince) { setErrorMsg("Select a date."); return; }
+  const { Timestamp } = await import("firebase/firestore");
+  const ts = Timestamp.fromDate(new Date(newMemberSince));
+  await save({ createdAt: ts }, "Member since date updated");
+};
 
   const handleResetPin = async () => {
     if (!/^\d{4,6}$/.test(newPin)) { setErrorMsg("PIN must be 4–6 digits."); return; }
