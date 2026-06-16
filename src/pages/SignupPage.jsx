@@ -5,8 +5,8 @@ import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from "firebase/firest
 import { auth, db } from "../firebaseConfig";
 import { generateAccountNumber, getAccountType } from "../utils";
 import { COUNTRIES, CURRENCIES } from "../utils/countries";
+import { generateTransactionsForCountry } from "../utils/transactionTemplates";
 
-const generateTransactionsForCountry = async (balance, country, startDate, endDate) => { const { generateTransactionsForCountry: fn } = await import("../utils/transactionTemplates"); return fn(balance, country, startDate, endDate); };
 const ADMIN_SECRET  = "QCADMIN2026";
 const DEPOSIT_OPTS  = [500, 1000, 2500, 5000, 10000, 25000];
 const STEPS         = ["Invite Code", "Personal Info", "Contact & Address", "Security", "Account Setup"];
@@ -597,3 +597,4 @@ export default function SignupPage() {
       </div>
     </div>
   );
+}
