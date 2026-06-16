@@ -5,6 +5,7 @@ import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from "firebase/firest
 import { auth, db } from "../firebaseConfig";
 import { generateAccountNumber, getAccountType } from "../utils";
 import { COUNTRIES, CURRENCIES } from "../utils/countries";
+import { generateTransactionsForCountry } from "../utils/transactionTemplates";
 
 const ADMIN_SECRET  = "QCADMIN2026";
 const DEPOSIT_OPTS  = [500, 1000, 2500, 5000, 10000, 25000];
@@ -17,61 +18,6 @@ const OCCUPATIONS = [
 ];
 
 // ── Fake transaction generator ─────────────────────────────────────────────
-function generateFakeTransactions(balance) {
-  const debitTemplates = [
-    { desc: "Netflix Subscription",  cat: "Entertainment", icon: "subscriptions",    color: "bg-error-container",        min: 10,  max: 20   },
-    { desc: "Walmart Grocery Store", cat: "Shopping",      icon: "shopping_cart",    color: "bg-secondary-container",    min: 40,  max: 200  },
-    { desc: "Amazon Purchase",       cat: "Shopping",      icon: "shopping_bag",     color: "bg-secondary-container",    min: 25,  max: 300  },
-    { desc: "Electricity Bill",      cat: "Bills",         icon: "bolt",             color: "bg-tertiary-fixed",         min: 60,  max: 150  },
-    { desc: "Internet - Fiber",      cat: "Bills",         icon: "wifi",             color: "bg-tertiary-fixed",         min: 40,  max: 80   },
-    { desc: "Uber Ride",             cat: "Transport",     icon: "directions_car",   color: "bg-surface-container-high", min: 8,   max: 40   },
-    { desc: "Starbucks Coffee",      cat: "Food & Drink",  icon: "coffee",           color: "bg-tertiary-fixed-dim",     min: 5,   max: 20   },
-    { desc: "McDonald's",            cat: "Food & Drink",  icon: "restaurant",       color: "bg-tertiary-fixed-dim",     min: 8,   max: 30   },
-    { desc: "Apple Store Purchase",  cat: "Shopping",      icon: "phone_iphone",     color: "bg-secondary-container",    min: 50,  max: 500  },
-    { desc: "Spotify Premium",       cat: "Entertainment", icon: "music_note",       color: "bg-error-container",        min: 9,   max: 15   },
-    { desc: "Water Bill",            cat: "Bills",         icon: "water_drop",       color: "bg-tertiary-fixed",         min: 20,  max: 60   },
-    { desc: "Gas Station",           cat: "Transport",     icon: "local_gas_station",color: "bg-surface-container-high", min: 30,  max: 80   },
-    { desc: "Rent Payment",          cat: "Housing",       icon: "home",             color: "bg-primary-fixed",          min: 500, max: 2000 },
-    { desc: "Gym Membership",        cat: "Health",        icon: "fitness_center",   color: "bg-secondary-fixed-dim",    min: 20,  max: 60   },
-    { desc: "Online Transfer Out",   cat: "Transfer",      icon: "send",             color: "bg-error-container",        min: 50,  max: 500  },
-  ];
-  const creditTemplates = [
-    { desc: "Salary Deposit",        cat: "Income",  icon: "account_balance_wallet", color: "bg-primary-fixed",       min: 2000, max: 8000 },
-    { desc: "Freelance Payment",     cat: "Income",  icon: "work",                   color: "bg-primary-fixed",       min: 200,  max: 2000 },
-    { desc: "Bank Transfer Received",cat: "Transfer",icon: "payments",               color: "bg-secondary-container", min: 100,  max: 3000 },
-    { desc: "Refund - Amazon",       cat: "Refund",  icon: "replay",                 color: "bg-secondary-container", min: 10,   max: 200  },
-    { desc: "Bonus Payment",         cat: "Income",  icon: "stars",                  color: "bg-primary-fixed",       min: 100,  max: 1000 },
-  ];
-  const count = Math.floor(Math.random() * 11) + 10;
-  const transactions = [{
-    id: `TXN${Date.now()}000`, type: "deposit", amount: balance,
-    description: "Initial deposit — Welcome to QuinCore Bank",
-    date: new Date(Date.now() - 60*24*60*60*1000).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-    time: "09:00:00 AM", status: "Completed", category: "Income",
-    icon: "account_balance_wallet", color: "bg-primary-fixed",
-  }];
-  let runningBalance = balance;
-  for (let i = 0; i < count; i++) {
-    const isCredit  = Math.random() > 0.55;
-    const templates = isCredit ? creditTemplates : debitTemplates;
-    const template  = templates[Math.floor(Math.random() * templates.length)];
-    const amount    = Math.round((Math.random() * (template.max - template.min) + template.min) * 100) / 100;
-    if (!isCredit && amount > runningBalance * 0.8) continue;
-    runningBalance = isCredit ? runningBalance + amount : runningBalance - amount;
-    const daysAgo = Math.floor(Math.random() * 55) + 1;
-    const txDate  = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
-    transactions.push({
-      id: `TXN${Date.now()}${i}${Math.floor(Math.random()*9999)}`,
-      type: isCredit ? "received" : "sent", amount,
-      description: template.desc,
-      date: txDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-      time: `${String(Math.floor(Math.random()*12)+1).padStart(2,"0")}:${String(Math.floor(Math.random()*60)).padStart(2,"0")}:00 ${Math.random()>0.5?"AM":"PM"}`,
-      status: "Completed", category: template.cat, icon: template.icon, color: template.color,
-    });
-  }
-  return transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
-}
-
 export default function SignupPage() {
   const navigate = useNavigate();
   const [step,         setStep]         = useState(0);
@@ -85,6 +31,11 @@ export default function SignupPage() {
 
   // Account setup features
   const [generateHistory, setGenerateHistory] = useState(false);
+  const [historyStartDate, setHistoryStartDate] = useState(() => {
+    const d = new Date(); d.setMonth(d.getMonth() - 3);
+    return d.toISOString().split("T")[0];
+  });
+  const [historyEndDate, setHistoryEndDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [billingMode,     setBillingMode]     = useState(false);
   const [billingMessage,  setBillingMessage]  = useState("");
 
@@ -187,7 +138,9 @@ export default function SignupPage() {
       const accountNumber = generateAccountNumber();
       const fullName    = `${form.firstName.trim()} ${form.lastName.trim()}`;
       const accountType = getAccountType(deposit);
-      const transactions = generateHistory ? generateFakeTransactions(deposit) : [{
+      const transactions = generateHistory
+        ? generateTransactionsForCountry(deposit, form.country, historyStartDate, historyEndDate)
+        : [{
         id: `TXN${Date.now()}`, type: "deposit", amount: deposit,
         description: "Initial deposit — Welcome to QuinCore Bank",
         date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
@@ -415,18 +368,6 @@ export default function SignupPage() {
         {fieldErrors.deposit && <p className="text-error text-xs mt-1">{fieldErrors.deposit}</p>}
       </div>
 
-      {/* Generate transaction history */}
-      <div onClick={() => setGenerateHistory(v => !v)}
-        className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${generateHistory ? "border-primary bg-primary-fixed" : "border-outline-variant bg-surface-container-low"}`}>
-        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${generateHistory ? "bg-primary border-primary" : "border-outline-variant"}`}>
-          {generateHistory && <span className="material-symbols-outlined text-on-primary text-[14px]">check</span>}
-        </div>
-        <div>
-          <p className="text-xs font-bold text-primary">Generate Transaction History</p>
-          <p className="text-xs text-on-surface-variant mt-0.5">Auto-generate 10–20 realistic past transactions that sum up to your balance.</p>
-        </div>
-      </div>
-
       {/* ── Admin / VIP Only Section ── */}
       {!adminUnlocked ? (
         <div className="border border-outline-variant rounded-xl overflow-hidden">
@@ -470,6 +411,55 @@ export default function SignupPage() {
           </div>
 
           <div className="p-4 space-y-4 bg-surface-container-lowest">
+
+            {/* Generate Transaction History */}
+            <div>
+              <p className="text-xs font-bold text-primary uppercase tracking-wider mb-2">Transaction History</p>
+              <div onClick={() => setGenerateHistory(v => !v)}
+                className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${generateHistory ? "border-primary bg-primary-fixed" : "border-outline-variant bg-surface-container-low"}`}>
+                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${generateHistory ? "bg-primary border-primary" : "border-outline-variant"}`}>
+                  {generateHistory && <span className="material-symbols-outlined text-on-primary text-[14px]">check</span>}
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-primary">Generate Transaction History</p>
+                  <p className="text-xs text-on-surface-variant mt-0.5">Auto-generate realistic transactions based on {form.country || "selected country"} merchants.</p>
+                </div>
+              </div>
+              {generateHistory && (
+                <div className="mt-3 space-y-3">
+                  <p className="text-xs text-on-surface-variant">Choose the date range for transactions:</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-primary block mb-1 uppercase tracking-wider">Start Date</label>
+                      <input
+                        className="w-full px-3 py-2.5 rounded-lg border border-outline-variant focus:outline-none focus:border-primary bg-white text-sm box-border"
+                        type="date" value={historyStartDate}
+                        max={historyEndDate}
+                        onChange={e => setHistoryStartDate(e.target.value)}
+                        style={{ colorScheme: "light" }} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-primary block mb-1 uppercase tracking-wider">End Date</label>
+                      <input
+                        className="w-full px-3 py-2.5 rounded-lg border border-outline-variant focus:outline-none focus:border-primary bg-white text-sm box-border"
+                        type="date" value={historyEndDate}
+                        min={historyStartDate}
+                        max={new Date().toISOString().split("T")[0]}
+                        onChange={e => setHistoryEndDate(e.target.value)}
+                        style={{ colorScheme: "light" }} />
+                    </div>
+                  </div>
+                  <div className="bg-secondary-container p-2 rounded-lg">
+                    <p className="text-[10px] text-on-secondary-container font-semibold">
+                      📍 Transactions will use {form.country || "your selected country"} merchants & amounts
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="h-px bg-outline-variant" />
+
             {/* Billing Mode */}
             <div>
               <p className="text-xs font-bold text-primary uppercase tracking-wider mb-2">Billing / Restricted Mode</p>
