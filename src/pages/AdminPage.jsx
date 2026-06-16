@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { collection, getDocs, doc, updateDoc, deleteDoc, arrayUnion } from "firebase/firestore";
 import { db } from "../firebaseConfig";
+import { generateTransactionsForCountry } from "../utils/transactionTemplates";
 
 const ADMIN_EMAIL    = "admin@quincore.online";
 const ADMIN_PASSWORD = "QuinCore@Admin2026";
@@ -8,55 +9,6 @@ const ADMIN_PASSWORD = "QuinCore@Admin2026";
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt = (n, sym = "$") =>
   `${sym}${Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-function generateFakeTransactions(balance) {
-  const debitTemplates = [
-    { desc: "Netflix Subscription",  cat: "Entertainment", icon: "subscriptions",    color: "bg-error-container",        min: 10,  max: 20   },
-    { desc: "Walmart Grocery Store", cat: "Shopping",      icon: "shopping_cart",    color: "bg-secondary-container",    min: 40,  max: 200  },
-    { desc: "Amazon Purchase",       cat: "Shopping",      icon: "shopping_bag",     color: "bg-secondary-container",    min: 25,  max: 300  },
-    { desc: "Electricity Bill",      cat: "Bills",         icon: "bolt",             color: "bg-tertiary-fixed",         min: 60,  max: 150  },
-    { desc: "Internet - Fiber",      cat: "Bills",         icon: "wifi",             color: "bg-tertiary-fixed",         min: 40,  max: 80   },
-    { desc: "Uber Ride",             cat: "Transport",     icon: "directions_car",   color: "bg-surface-container-high", min: 8,   max: 40   },
-    { desc: "Starbucks Coffee",      cat: "Food & Drink",  icon: "coffee",           color: "bg-tertiary-fixed-dim",     min: 5,   max: 20   },
-    { desc: "McDonald's",            cat: "Food & Drink",  icon: "restaurant",       color: "bg-tertiary-fixed-dim",     min: 8,   max: 30   },
-    { desc: "Apple Store Purchase",  cat: "Shopping",      icon: "phone_iphone",     color: "bg-secondary-container",    min: 50,  max: 500  },
-    { desc: "Spotify Premium",       cat: "Entertainment", icon: "music_note",       color: "bg-error-container",        min: 9,   max: 15   },
-    { desc: "Water Bill",            cat: "Bills",         icon: "water_drop",       color: "bg-tertiary-fixed",         min: 20,  max: 60   },
-    { desc: "Gas Station",           cat: "Transport",     icon: "local_gas_station",color: "bg-surface-container-high", min: 30,  max: 80   },
-    { desc: "Rent Payment",          cat: "Housing",       icon: "home",             color: "bg-primary-fixed",          min: 500, max: 2000 },
-    { desc: "Gym Membership",        cat: "Health",        icon: "fitness_center",   color: "bg-secondary-fixed-dim",    min: 20,  max: 60   },
-    { desc: "Online Transfer Out",   cat: "Transfer",      icon: "send",             color: "bg-error-container",        min: 50,  max: 500  },
-  ];
-  const creditTemplates = [
-    { desc: "Salary Deposit",         cat: "Income",  icon: "account_balance_wallet", color: "bg-primary-fixed",       min: 2000, max: 8000 },
-    { desc: "Freelance Payment",      cat: "Income",  icon: "work",                   color: "bg-primary-fixed",       min: 200,  max: 2000 },
-    { desc: "Bank Transfer Received", cat: "Transfer",icon: "payments",               color: "bg-secondary-container", min: 100,  max: 3000 },
-    { desc: "Refund - Amazon",        cat: "Refund",  icon: "replay",                 color: "bg-secondary-container", min: 10,   max: 200  },
-    { desc: "Bonus Payment",          cat: "Income",  icon: "stars",                  color: "bg-primary-fixed",       min: 100,  max: 1000 },
-  ];
-  const count = Math.floor(Math.random() * 11) + 10;
-  const transactions = [];
-  let runningBalance = balance;
-  for (let i = 0; i < count; i++) {
-    const isCredit  = Math.random() > 0.55;
-    const templates = isCredit ? creditTemplates : debitTemplates;
-    const template  = templates[Math.floor(Math.random() * templates.length)];
-    const amount    = Math.round((Math.random() * (template.max - template.min) + template.min) * 100) / 100;
-    if (!isCredit && amount > runningBalance * 0.8) continue;
-    runningBalance = isCredit ? runningBalance + amount : runningBalance - amount;
-    const daysAgo = Math.floor(Math.random() * 55) + 1;
-    const txDate  = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
-    transactions.push({
-      id: `TXN${Date.now()}${i}${Math.floor(Math.random()*9999)}`,
-      type: isCredit ? "received" : "sent", amount,
-      description: template.desc,
-      date: txDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-      time: `${String(Math.floor(Math.random()*12)+1).padStart(2,"0")}:${String(Math.floor(Math.random()*60)).padStart(2,"0")}:00 ${Math.random()>0.5?"AM":"PM"}`,
-      status: "Completed", category: template.cat, icon: template.icon, color: template.color,
-    });
-  }
-  return transactions;
-}
 
 // ── Stat Card ─────────────────────────────────────────────────────────────────
 function StatCard({ icon, label, value, color = "bg-primary-fixed" }) {
@@ -86,6 +38,10 @@ function UserModal({ user, onClose, onUpdate }) {
   const [supportContact, setSupportContact]  = useState(user.supportContact || "");
   const [successMsg,     setSuccessMsg]      = useState("");
   const [errorMsg,       setErrorMsg]        = useState("");
+  // History generation
+  const [histStartDate, setHistStartDate] = useState(() => { const d = new Date(); d.setMonth(d.getMonth()-3); return d.toISOString().split("T")[0]; });
+  const [histEndDate,   setHistEndDate]   = useState(() => new Date().toISOString().split("T")[0]);
+  const [replaceHist,   setReplaceHist]   = useState(false);
 
   const save = async (updates, msg) => {
     setSaving(true); setSuccessMsg(""); setErrorMsg("");
@@ -168,14 +124,19 @@ function UserModal({ user, onClose, onUpdate }) {
   };
 
   const handleGenerateHistory = async () => {
-    if (!window.confirm(`Generate 10–20 fake transactions for ${user.fullName}? This will add to existing history.`)) return;
     setSaving(true); setSuccessMsg(""); setErrorMsg("");
     try {
-      const newTxns = generateFakeTransactions(user.balance || 0);
-      for (const txn of newTxns) {
-        await updateDoc(doc(db, "users", user.id), { transactions: arrayUnion(txn) });
-      }
-      setSuccessMsg(`${newTxns.length} transactions added!`);
+      const newTxns = generateTransactionsForCountry(
+        user.balance || 0,
+        user.country || "United States",
+        histStartDate,
+        histEndDate
+      );
+      const updates = replaceHist
+        ? { transactions: newTxns }
+        : { transactions: arrayUnion(...newTxns) };
+      await updateDoc(doc(db, "users", user.id), updates);
+      setSuccessMsg(`${newTxns.length} transactions ${replaceHist ? "replaced" : "added"}!`);
       onUpdate();
       setTimeout(() => setSuccessMsg(""), 3000);
     } catch (e) { setErrorMsg(e.message); }
@@ -345,17 +306,54 @@ function UserModal({ user, onClose, onUpdate }) {
               <div className="h-px bg-outline-variant" />
 
               {/* Generate Transaction History — VIP Only */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <label className="text-xs font-bold text-primary uppercase tracking-wider block flex items-center gap-2">
                   <span className="material-symbols-outlined text-[16px]">history</span>
                   Generate Transaction History
                 </label>
-                <p className="text-xs text-on-surface-variant">Add 10–20 realistic transactions to this account. Existing transactions are kept.</p>
+                <p className="text-xs text-on-surface-variant">
+                  Generates realistic transactions for <strong>{user.country || "this user"}</strong> using country-specific merchants, names and bill amounts.
+                </p>
                 <p className="text-[10px] text-on-surface-variant">Current transactions: <strong>{(user.transactions || []).length}</strong></p>
+
+                {/* Date range */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-on-surface-variant block mb-1 uppercase">Start Date</label>
+                    <input
+                      className="w-full px-2 py-2 rounded-lg border border-outline-variant text-xs focus:outline-none focus:border-primary bg-white box-border"
+                      type="date" value={histStartDate} max={histEndDate}
+                      onChange={e => setHistStartDate(e.target.value)}
+                      style={{ colorScheme: "light" }} />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-on-surface-variant block mb-1 uppercase">End Date</label>
+                    <input
+                      className="w-full px-2 py-2 rounded-lg border border-outline-variant text-xs focus:outline-none focus:border-primary bg-white box-border"
+                      type="date" value={histEndDate} min={histStartDate}
+                      max={new Date().toISOString().split("T")[0]}
+                      onChange={e => setHistEndDate(e.target.value)}
+                      style={{ colorScheme: "light" }} />
+                  </div>
+                </div>
+
+                {/* Replace or add */}
+                <div
+                  onClick={() => setReplaceHist(v => !v)}
+                  className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${replaceHist ? "border-error bg-error-container/20" : "border-outline-variant bg-surface-container-low"}`}>
+                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${replaceHist ? "bg-error border-error" : "border-outline-variant"}`}>
+                    {replaceHist && <span className="material-symbols-outlined text-on-error text-[14px]">check</span>}
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-primary">Replace existing history</p>
+                    <p className="text-[10px] text-on-surface-variant">Deletes old transactions and replaces with new ones. Leave unchecked to add on top.</p>
+                  </div>
+                </div>
+
                 <button onClick={handleGenerateHistory} disabled={saving}
                   className="w-full py-2.5 bg-secondary-container text-on-secondary-container rounded-lg text-xs font-bold active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2">
                   <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
-                  {saving ? "Generating…" : "Generate Fake History"}
+                  {saving ? "Generating…" : replaceHist ? "Replace History" : "Add to History"}
                 </button>
               </div>
             </div>
