@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { doc, updateDoc, arrayUnion } from "firebase/firestore";
+import { doc, updateDoc, arrayUnion, serverTimestamp } from "firebase/firestore";
 import { db, auth } from "../firebaseConfig";
 import { useUserData } from "../hooks/useUserData";
 import Sidebar from "../components/Sidebar";

@@ -4,6 +4,7 @@ import { signOut } from "firebase/auth";
 import { db, auth } from "../firebaseConfig";
 import { useUserData } from "../hooks/useUserData";
 import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import MobileNav from "../components/MobileNav";
 import Header from "../components/Header";
