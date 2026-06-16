@@ -1,289 +1,327 @@
-// Country-specific transaction templates
-export const COUNTRY_TEMPLATES = {
-  // ── Nigeria ────────────────────────────────────────────────────────────────
-  "Nigeria": {
-    debits: [
-      { desc: "MTN Airtime Recharge",      cat: "Utilities",     icon: "phone",             color: "bg-secondary-container",    min: 500,   max: 5000   },
-      { desc: "DSTV Subscription",         cat: "Entertainment", icon: "tv",                color: "bg-error-container",        min: 2900,  max: 24500  },
-      { desc: "EKEDC Electricity Bill",    cat: "Bills",         icon: "bolt",              color: "bg-tertiary-fixed",         min: 5000,  max: 30000  },
-      { desc: "Shoprite Purchase",         cat: "Shopping",      icon: "shopping_cart",     color: "bg-secondary-container",    min: 3000,  max: 25000  },
-      { desc: "Jumia Order",               cat: "Shopping",      icon: "shopping_bag",      color: "bg-secondary-container",    min: 2000,  max: 50000  },
-      { desc: "Bolt Ride",                 cat: "Transport",     icon: "directions_car",    color: "bg-surface-container-high", min: 800,   max: 5000   },
-      { desc: "Chicken Republic",          cat: "Food & Drink",  icon: "restaurant",        color: "bg-tertiary-fixed-dim",     min: 1500,  max: 8000   },
-      { desc: "Glo Data Subscription",     cat: "Utilities",     icon: "wifi",              color: "bg-secondary-container",    min: 1000,  max: 10000  },
-      { desc: "Airtel Subscription",       cat: "Utilities",     icon: "phone",             color: "bg-error-container",        min: 500,   max: 5000   },
-      { desc: "Rent Payment",              cat: "Housing",       icon: "home",              color: "bg-primary-fixed",          min: 50000, max: 300000 },
-      { desc: "Lagos Water Board",         cat: "Bills",         icon: "water_drop",        color: "bg-tertiary-fixed",         min: 2000,  max: 8000   },
-      { desc: "Fuel Purchase",             cat: "Transport",     icon: "local_gas_station", color: "bg-surface-container-high", min: 5000,  max: 30000  },
-      { desc: "Mr Biggs",                  cat: "Food & Drink",  icon: "fastfood",          color: "bg-tertiary-fixed-dim",     min: 1200,  max: 6000   },
-      { desc: "Konga Purchase",            cat: "Shopping",      icon: "shopping_bag",      color: "bg-secondary-container",    min: 3000,  max: 40000  },
-      { desc: "Showmax Subscription",      cat: "Entertainment", icon: "subscriptions",     color: "bg-error-container",        min: 1200,  max: 2900   },
-    ],
-    credits: [
-      { desc: "Salary — Company Credit",   cat: "Income",  icon: "account_balance_wallet", color: "bg-primary-fixed",       min: 80000,  max: 500000 },
-      { desc: "Freelance Payment",         cat: "Income",  icon: "work",                   color: "bg-primary-fixed",       min: 20000,  max: 200000 },
-      { desc: "Transfer Received",         cat: "Transfer",icon: "payments",               color: "bg-secondary-container", min: 5000,   max: 100000 },
-      { desc: "Business Revenue",          cat: "Income",  icon: "storefront",             color: "bg-primary-fixed",       min: 30000,  max: 300000 },
-      { desc: "Refund — Jumia",            cat: "Refund",  icon: "replay",                 color: "bg-secondary-container", min: 2000,   max: 30000  },
-    ],
-  },
-
-  // ── United States ──────────────────────────────────────────────────────────
-  "United States": {
-    debits: [
-      { desc: "Walmart Grocery",           cat: "Shopping",      icon: "shopping_cart",     color: "bg-secondary-container",    min: 40,    max: 250    },
-      { desc: "Netflix Subscription",      cat: "Entertainment", icon: "subscriptions",     color: "bg-error-container",        min: 15,    max: 23     },
-      { desc: "Amazon Purchase",           cat: "Shopping",      icon: "shopping_bag",      color: "bg-secondary-container",    min: 20,    max: 400    },
-      { desc: "Uber Ride",                 cat: "Transport",     icon: "directions_car",    color: "bg-surface-container-high", min: 8,     max: 45     },
-      { desc: "Starbucks Coffee",          cat: "Food & Drink",  icon: "coffee",            color: "bg-tertiary-fixed-dim",     min: 5,     max: 18     },
-      { desc: "AT&T Phone Bill",           cat: "Bills",         icon: "phone",             color: "bg-tertiary-fixed",         min: 60,    max: 120    },
-      { desc: "Apple Store",               cat: "Shopping",      icon: "phone_iphone",      color: "bg-secondary-container",    min: 50,    max: 1200   },
-      { desc: "Spotify Premium",           cat: "Entertainment", icon: "music_note",        color: "bg-error-container",        min: 10,    max: 16     },
-      { desc: "McDonald's",                cat: "Food & Drink",  icon: "fastfood",          color: "bg-tertiary-fixed-dim",     min: 8,     max: 30     },
-      { desc: "Con Edison Electric Bill",  cat: "Bills",         icon: "bolt",              color: "bg-tertiary-fixed",         min: 80,    max: 200    },
-      { desc: "Rent Payment",              cat: "Housing",       icon: "home",              color: "bg-primary-fixed",          min: 1200,  max: 4000   },
-      { desc: "Chevron Gas Station",       cat: "Transport",     icon: "local_gas_station", color: "bg-surface-container-high", min: 40,    max: 100    },
-      { desc: "Whole Foods Market",        cat: "Shopping",      icon: "shopping_cart",     color: "bg-secondary-container",    min: 60,    max: 300    },
-      { desc: "Hulu Subscription",         cat: "Entertainment", icon: "tv",                color: "bg-error-container",        min: 8,     max: 18     },
-      { desc: "Planet Fitness",            cat: "Health",        icon: "fitness_center",    color: "bg-secondary-fixed-dim",    min: 10,    max: 30     },
-    ],
-    credits: [
-      { desc: "Direct Deposit — Payroll",  cat: "Income",  icon: "account_balance_wallet", color: "bg-primary-fixed",       min: 2000,  max: 8000   },
-      { desc: "Freelance Payment",         cat: "Income",  icon: "work",                   color: "bg-primary-fixed",       min: 300,   max: 3000   },
-      { desc: "Zelle Transfer Received",   cat: "Transfer",icon: "payments",               color: "bg-secondary-container", min: 100,   max: 2000   },
-      { desc: "Tax Refund",                cat: "Income",  icon: "stars",                  color: "bg-primary-fixed",       min: 500,   max: 4000   },
-      { desc: "Refund — Amazon",           cat: "Refund",  icon: "replay",                 color: "bg-secondary-container", min: 10,    max: 300    },
-    ],
-  },
-
-  // ── United Kingdom ─────────────────────────────────────────────────────────
-  "United Kingdom": {
-    debits: [
-      { desc: "Tesco Grocery",             cat: "Shopping",      icon: "shopping_cart",     color: "bg-secondary-container",    min: 20,    max: 150    },
-      { desc: "BBC TV Licence",            cat: "Bills",         icon: "tv",                color: "bg-tertiary-fixed",         min: 13,    max: 13     },
-      { desc: "BT Broadband",              cat: "Bills",         icon: "wifi",              color: "bg-tertiary-fixed",         min: 30,    max: 60     },
-      { desc: "Uber Ride",                 cat: "Transport",     icon: "directions_car",    color: "bg-surface-container-high", min: 8,     max: 40     },
-      { desc: "Pret A Manger",             cat: "Food & Drink",  icon: "coffee",            color: "bg-tertiary-fixed-dim",     min: 4,     max: 15     },
-      { desc: "Amazon UK Purchase",        cat: "Shopping",      icon: "shopping_bag",      color: "bg-secondary-container",    min: 15,    max: 200    },
-      { desc: "Sainsbury's",               cat: "Shopping",      icon: "shopping_cart",     color: "bg-secondary-container",    min: 25,    max: 120    },
-      { desc: "Sky TV Subscription",       cat: "Entertainment", icon: "subscriptions",     color: "bg-error-container",        min: 25,    max: 70     },
-      { desc: "TfL Oyster Card",           cat: "Transport",     icon: "train",             color: "bg-surface-container-high", min: 5,     max: 50     },
-      { desc: "EDF Energy Bill",           cat: "Bills",         icon: "bolt",              color: "bg-tertiary-fixed",         min: 60,    max: 200    },
-      { desc: "Rent Payment",              cat: "Housing",       icon: "home",              color: "bg-primary-fixed",          min: 800,   max: 3000   },
-      { desc: "Waitrose",                  cat: "Shopping",      icon: "shopping_cart",     color: "bg-secondary-container",    min: 30,    max: 150    },
-      { desc: "Greggs",                    cat: "Food & Drink",  icon: "fastfood",          color: "bg-tertiary-fixed-dim",     min: 2,     max: 8      },
-      { desc: "Netflix UK",                cat: "Entertainment", icon: "subscriptions",     color: "bg-error-container",        min: 10,    max: 18     },
-      { desc: "PureGym Membership",        cat: "Health",        icon: "fitness_center",    color: "bg-secondary-fixed-dim",    min: 20,    max: 40     },
-    ],
-    credits: [
-      { desc: "BACS Salary Payment",       cat: "Income",  icon: "account_balance_wallet", color: "bg-primary-fixed",       min: 1500,  max: 6000   },
-      { desc: "Freelance — HMRC",          cat: "Income",  icon: "work",                   color: "bg-primary-fixed",       min: 200,   max: 3000   },
-      { desc: "Bank Transfer Received",    cat: "Transfer",icon: "payments",               color: "bg-secondary-container", min: 50,    max: 1500   },
-      { desc: "HMRC Tax Refund",           cat: "Income",  icon: "stars",                  color: "bg-primary-fixed",       min: 100,   max: 2000   },
-      { desc: "Refund — Amazon UK",        cat: "Refund",  icon: "replay",                 color: "bg-secondary-container", min: 5,     max: 200    },
-    ],
-  },
-
-  // ── Ghana ──────────────────────────────────────────────────────────────────
-  "Ghana": {
-    debits: [
-      { desc: "MTN Mobile Money",          cat: "Utilities",     icon: "phone",             color: "bg-secondary-container",    min: 20,    max: 500    },
-      { desc: "ECG Electricity Bill",      cat: "Bills",         icon: "bolt",              color: "bg-tertiary-fixed",         min: 100,   max: 500    },
-      { desc: "Shoprite Ghana",            cat: "Shopping",      icon: "shopping_cart",     color: "bg-secondary-container",    min: 50,    max: 400    },
-      { desc: "Bolt Ride",                 cat: "Transport",     icon: "directions_car",    color: "bg-surface-container-high", min: 15,    max: 80     },
-      { desc: "Melcom Purchase",           cat: "Shopping",      icon: "shopping_bag",      color: "bg-secondary-container",    min: 50,    max: 600    },
-      { desc: "Vodafone Ghana Data",       cat: "Utilities",     icon: "wifi",              color: "bg-secondary-container",    min: 20,    max: 200    },
-      { desc: "MultiChoice DStv",          cat: "Entertainment", icon: "tv",                color: "bg-error-container",        min: 50,    max: 250    },
-      { desc: "Accra Mall Shopping",       cat: "Shopping",      icon: "storefront",        color: "bg-secondary-container",    min: 100,   max: 800    },
-      { desc: "KFC Ghana",                 cat: "Food & Drink",  icon: "fastfood",          color: "bg-tertiary-fixed-dim",     min: 30,    max: 150    },
-      { desc: "Rent Payment",              cat: "Housing",       icon: "home",              color: "bg-primary-fixed",          min: 500,   max: 3000   },
-    ],
-    credits: [
-      { desc: "Salary Payment",            cat: "Income",  icon: "account_balance_wallet", color: "bg-primary-fixed",       min: 1000,  max: 8000   },
-      { desc: "Business Revenue",          cat: "Income",  icon: "storefront",             color: "bg-primary-fixed",       min: 500,   max: 5000   },
-      { desc: "MoMo Transfer Received",    cat: "Transfer",icon: "payments",               color: "bg-secondary-container", min: 100,   max: 2000   },
-      { desc: "Freelance Payment",         cat: "Income",  icon: "work",                   color: "bg-primary-fixed",       min: 200,   max: 3000   },
-      { desc: "Refund",                    cat: "Refund",  icon: "replay",                 color: "bg-secondary-container", min: 20,    max: 300    },
-    ],
-  },
-
-  // ── South Africa ───────────────────────────────────────────────────────────
-  "South Africa": {
-    debits: [
-      { desc: "Checkers Grocery",          cat: "Shopping",      icon: "shopping_cart",     color: "bg-secondary-container",    min: 200,   max: 2000   },
-      { desc: "Eskom Electricity",         cat: "Bills",         icon: "bolt",              color: "bg-tertiary-fixed",         min: 500,   max: 2000   },
-      { desc: "MultiChoice DStv",          cat: "Entertainment", icon: "tv",                color: "bg-error-container",        min: 120,   max: 850    },
-      { desc: "Takealot Purchase",         cat: "Shopping",      icon: "shopping_bag",      color: "bg-secondary-container",    min: 100,   max: 3000   },
-      { desc: "Uber Ride",                 cat: "Transport",     icon: "directions_car",    color: "bg-surface-container-high", min: 50,    max: 300    },
-      { desc: "KFC South Africa",          cat: "Food & Drink",  icon: "fastfood",          color: "bg-tertiary-fixed-dim",     min: 80,    max: 250    },
-      { desc: "Vodacom Data Bundle",       cat: "Utilities",     icon: "wifi",              color: "bg-secondary-container",    min: 99,    max: 499    },
-      { desc: "Pick n Pay",                cat: "Shopping",      icon: "shopping_cart",     color: "bg-secondary-container",    min: 150,   max: 1500   },
-      { desc: "Rent Payment",              cat: "Housing",       icon: "home",              color: "bg-primary-fixed",          min: 3000,  max: 15000  },
-      { desc: "Shell Fuel Station",        cat: "Transport",     icon: "local_gas_station", color: "bg-surface-container-high", min: 300,   max: 1200   },
-    ],
-    credits: [
-      { desc: "Salary — EFT Payment",      cat: "Income",  icon: "account_balance_wallet", color: "bg-primary-fixed",       min: 8000,  max: 50000  },
-      { desc: "Freelance Payment",         cat: "Income",  icon: "work",                   color: "bg-primary-fixed",       min: 2000,  max: 20000  },
-      { desc: "EFT Transfer Received",     cat: "Transfer",icon: "payments",               color: "bg-secondary-container", min: 500,   max: 10000  },
-      { desc: "SARS Tax Refund",           cat: "Income",  icon: "stars",                  color: "bg-primary-fixed",       min: 1000,  max: 15000  },
-      { desc: "Refund — Takealot",         cat: "Refund",  icon: "replay",                 color: "bg-secondary-container", min: 100,   max: 2000   },
-    ],
-  },
-
-  // ── Canada ─────────────────────────────────────────────────────────────────
-  "Canada": {
-    debits: [
-      { desc: "Loblaw Grocery",            cat: "Shopping",      icon: "shopping_cart",     color: "bg-secondary-container",    min: 50,    max: 300    },
-      { desc: "Netflix Canada",            cat: "Entertainment", icon: "subscriptions",     color: "bg-error-container",        min: 10,    max: 20     },
-      { desc: "Tim Hortons",               cat: "Food & Drink",  icon: "coffee",            color: "bg-tertiary-fixed-dim",     min: 3,     max: 15     },
-      { desc: "Rogers Phone Bill",         cat: "Bills",         icon: "phone",             color: "bg-tertiary-fixed",         min: 60,    max: 120    },
-      { desc: "Hydro One Electric Bill",   cat: "Bills",         icon: "bolt",              color: "bg-tertiary-fixed",         min: 80,    max: 200    },
-      { desc: "Amazon Canada",             cat: "Shopping",      icon: "shopping_bag",      color: "bg-secondary-container",    min: 20,    max: 300    },
-      { desc: "Uber Ride",                 cat: "Transport",     icon: "directions_car",    color: "bg-surface-container-high", min: 10,    max: 50     },
-      { desc: "Rent Payment",              cat: "Housing",       icon: "home",              color: "bg-primary-fixed",          min: 1500,  max: 4000   },
-      { desc: "Spotify Canada",            cat: "Entertainment", icon: "music_note",        color: "bg-error-container",        min: 10,    max: 15     },
-      { desc: "Petro-Canada Fuel",         cat: "Transport",     icon: "local_gas_station", color: "bg-surface-container-high", min: 60,    max: 150    },
-    ],
-    credits: [
-      { desc: "Direct Deposit — Payroll",  cat: "Income",  icon: "account_balance_wallet", color: "bg-primary-fixed",       min: 2500,  max: 9000   },
-      { desc: "Freelance Payment",         cat: "Income",  icon: "work",                   color: "bg-primary-fixed",       min: 500,   max: 5000   },
-      { desc: "Interac e-Transfer",        cat: "Transfer",icon: "payments",               color: "bg-secondary-container", min: 100,   max: 3000   },
-      { desc: "CRA Tax Refund",            cat: "Income",  icon: "stars",                  color: "bg-primary-fixed",       min: 500,   max: 5000   },
-      { desc: "Refund — Amazon",           cat: "Refund",  icon: "replay",                 color: "bg-secondary-container", min: 10,    max: 200    },
-    ],
-  },
-
-  // ── Australia ──────────────────────────────────────────────────────────────
-  "Australia": {
-    debits: [
-      { desc: "Woolworths Grocery",        cat: "Shopping",      icon: "shopping_cart",     color: "bg-secondary-container",    min: 50,    max: 300    },
-      { desc: "Netflix Australia",         cat: "Entertainment", icon: "subscriptions",     color: "bg-error-container",        min: 10,    max: 22     },
-      { desc: "Optus Phone Bill",          cat: "Bills",         icon: "phone",             color: "bg-tertiary-fixed",         min: 40,    max: 100    },
-      { desc: "AGL Energy Bill",           cat: "Bills",         icon: "bolt",              color: "bg-tertiary-fixed",         min: 100,   max: 350    },
-      { desc: "Uber Ride",                 cat: "Transport",     icon: "directions_car",    color: "bg-surface-container-high", min: 10,    max: 50     },
-      { desc: "JB Hi-Fi Purchase",         cat: "Shopping",      icon: "shopping_bag",      color: "bg-secondary-container",    min: 50,    max: 800    },
-      { desc: "Rent Payment",              cat: "Housing",       icon: "home",              color: "bg-primary-fixed",          min: 1500,  max: 5000   },
-      { desc: "Coles Grocery",             cat: "Shopping",      icon: "shopping_cart",     color: "bg-secondary-container",    min: 40,    max: 250    },
-      { desc: "Stan Subscription",         cat: "Entertainment", icon: "tv",                color: "bg-error-container",        min: 10,    max: 19     },
-      { desc: "BP Fuel Station",           cat: "Transport",     icon: "local_gas_station", color: "bg-surface-container-high", min: 60,    max: 150    },
-    ],
-    credits: [
-      { desc: "Salary — Direct Credit",    cat: "Income",  icon: "account_balance_wallet", color: "bg-primary-fixed",       min: 3000,  max: 10000  },
-      { desc: "Freelance Payment",         cat: "Income",  icon: "work",                   color: "bg-primary-fixed",       min: 500,   max: 5000   },
-      { desc: "PayID Transfer Received",   cat: "Transfer",icon: "payments",               color: "bg-secondary-container", min: 100,   max: 3000   },
-      { desc: "ATO Tax Refund",            cat: "Income",  icon: "stars",                  color: "bg-primary-fixed",       min: 500,   max: 5000   },
-      { desc: "Refund",                    cat: "Refund",  icon: "replay",                 color: "bg-secondary-container", min: 20,    max: 300    },
-    ],
-  },
-
-  // ── Germany / Europe (EUR) ─────────────────────────────────────────────────
-  "Germany": {
-    debits: [
-      { desc: "REWE Grocery",              cat: "Shopping",      icon: "shopping_cart",     color: "bg-secondary-container",    min: 30,    max: 200    },
-      { desc: "Netflix Germany",           cat: "Entertainment", icon: "subscriptions",     color: "bg-error-container",        min: 10,    max: 18     },
-      { desc: "Deutsche Telekom",          cat: "Bills",         icon: "phone",             color: "bg-tertiary-fixed",         min: 30,    max: 80     },
-      { desc: "Vattenfall Energy",         cat: "Bills",         icon: "bolt",              color: "bg-tertiary-fixed",         min: 60,    max: 200    },
-      { desc: "Uber Ride",                 cat: "Transport",     icon: "directions_car",    color: "bg-surface-container-high", min: 8,     max: 40     },
-      { desc: "Zalando Purchase",          cat: "Shopping",      icon: "shopping_bag",      color: "bg-secondary-container",    min: 30,    max: 300    },
-      { desc: "Rent (Miete)",              cat: "Housing",       icon: "home",              color: "bg-primary-fixed",          min: 800,   max: 3000   },
-      { desc: "Amazon.de Purchase",        cat: "Shopping",      icon: "shopping_bag",      color: "bg-secondary-container",    min: 20,    max: 300    },
-      { desc: "DB Bahn Ticket",            cat: "Transport",     icon: "train",             color: "bg-surface-container-high", min: 15,    max: 120    },
-      { desc: "Lidl Grocery",              cat: "Shopping",      icon: "shopping_cart",     color: "bg-secondary-container",    min: 20,    max: 150    },
-    ],
-    credits: [
-      { desc: "Gehalt (Salary)",           cat: "Income",  icon: "account_balance_wallet", color: "bg-primary-fixed",       min: 2000,  max: 7000   },
-      { desc: "Freelance Zahlung",         cat: "Income",  icon: "work",                   color: "bg-primary-fixed",       min: 500,   max: 4000   },
-      { desc: "SEPA Transfer Received",    cat: "Transfer",icon: "payments",               color: "bg-secondary-container", min: 100,   max: 3000   },
-      { desc: "Steuererstattung (Tax)",    cat: "Income",  icon: "stars",                  color: "bg-primary-fixed",       min: 200,   max: 3000   },
-      { desc: "Erstattung (Refund)",       cat: "Refund",  icon: "replay",                 color: "bg-secondary-container", min: 10,    max: 200    },
-    ],
-  },
-
-  // ── India ──────────────────────────────────────────────────────────────────
-  "India": {
-    debits: [
-      { desc: "Jio Recharge",              cat: "Utilities",     icon: "phone",             color: "bg-secondary-container",    min: 149,   max: 999    },
-      { desc: "BigBasket Order",           cat: "Shopping",      icon: "shopping_cart",     color: "bg-secondary-container",    min: 300,   max: 3000   },
-      { desc: "Netflix India",             cat: "Entertainment", icon: "subscriptions",     color: "bg-error-container",        min: 149,   max: 649    },
-      { desc: "Amazon India",              cat: "Shopping",      icon: "shopping_bag",      color: "bg-secondary-container",    min: 200,   max: 5000   },
-      { desc: "Ola Ride",                  cat: "Transport",     icon: "directions_car",    color: "bg-surface-container-high", min: 80,    max: 500    },
-      { desc: "Swiggy Food Order",         cat: "Food & Drink",  icon: "fastfood",          color: "bg-tertiary-fixed-dim",     min: 150,   max: 800    },
-      { desc: "BSES Electricity Bill",     cat: "Bills",         icon: "bolt",              color: "bg-tertiary-fixed",         min: 500,   max: 3000   },
-      { desc: "Rent Payment",              cat: "Housing",       icon: "home",              color: "bg-primary-fixed",          min: 10000, max: 60000  },
-      { desc: "Hotstar Subscription",      cat: "Entertainment", icon: "tv",                color: "bg-error-container",        min: 299,   max: 1499   },
-      { desc: "Zomato Order",              cat: "Food & Drink",  icon: "restaurant",        color: "bg-tertiary-fixed-dim",     min: 200,   max: 1000   },
-    ],
-    credits: [
-      { desc: "Salary Credit",             cat: "Income",  icon: "account_balance_wallet", color: "bg-primary-fixed",       min: 30000, max: 200000 },
-      { desc: "Freelance Payment",         cat: "Income",  icon: "work",                   color: "bg-primary-fixed",       min: 5000,  max: 50000  },
-      { desc: "UPI Transfer Received",     cat: "Transfer",icon: "payments",               color: "bg-secondary-container", min: 1000,  max: 20000  },
-      { desc: "IT Refund",                 cat: "Income",  icon: "stars",                  color: "bg-primary-fixed",       min: 2000,  max: 30000  },
-      { desc: "Refund — Amazon",           cat: "Refund",  icon: "replay",                 color: "bg-secondary-container", min: 200,   max: 5000   },
-    ],
-  },
-};
-
-// Default templates for countries not specifically listed
-export const DEFAULT_TEMPLATES = {
-  debits: [
-    { desc: "Grocery Store",              cat: "Shopping",      icon: "shopping_cart",     color: "bg-secondary-container",    min: 20,    max: 200    },
-    { desc: "Streaming Subscription",     cat: "Entertainment", icon: "subscriptions",     color: "bg-error-container",        min: 10,    max: 25     },
-    { desc: "Phone Bill",                 cat: "Bills",         icon: "phone",             color: "bg-tertiary-fixed",         min: 30,    max: 100    },
-    { desc: "Electricity Bill",           cat: "Bills",         icon: "bolt",              color: "bg-tertiary-fixed",         min: 50,    max: 200    },
-    { desc: "Ride Share",                 cat: "Transport",     icon: "directions_car",    color: "bg-surface-container-high", min: 8,     max: 50     },
-    { desc: "Online Shopping",            cat: "Shopping",      icon: "shopping_bag",      color: "bg-secondary-container",    min: 20,    max: 300    },
-    { desc: "Restaurant",                 cat: "Food & Drink",  icon: "restaurant",        color: "bg-tertiary-fixed-dim",     min: 10,    max: 80     },
-    { desc: "Fuel Station",               cat: "Transport",     icon: "local_gas_station", color: "bg-surface-container-high", min: 30,    max: 100    },
-    { desc: "Rent Payment",               cat: "Housing",       icon: "home",              color: "bg-primary-fixed",          min: 500,   max: 3000   },
-    { desc: "Internet Bill",              cat: "Bills",         icon: "wifi",              color: "bg-tertiary-fixed",         min: 30,    max: 80     },
+// ── Name pools per region ─────────────────────────────────────────────────────
+const NAMES = {
+  Nigeria: [
+    "Chukwuemeka Obi", "Adaeze Nwosu", "Emeka Eze", "Ngozi Okonkwo", "Tunde Bakare",
+    "Bisi Adeyemi", "Kemi Oladele", "Seun Afolabi", "Chidi Okeke", "Amaka Nzekwe",
+    "Femi Ogunleye", "Ify Anyanwu", "Dele Awosika", "Sola Adesanya", "Yemi Abiodun",
+    "Obinna Nwosu", "Chisom Eze", "Rotimi Adegoke", "Funke Ajayi", "Uche Okafor",
   ],
-  credits: [
-    { desc: "Salary Deposit",             cat: "Income",  icon: "account_balance_wallet", color: "bg-primary-fixed",       min: 1000,  max: 8000   },
-    { desc: "Freelance Payment",          cat: "Income",  icon: "work",                   color: "bg-primary-fixed",       min: 200,   max: 3000   },
-    { desc: "Bank Transfer Received",     cat: "Transfer",icon: "payments",               color: "bg-secondary-container", min: 100,   max: 2000   },
-    { desc: "Bonus Payment",              cat: "Income",  icon: "stars",                  color: "bg-primary-fixed",       min: 100,   max: 2000   },
-    { desc: "Refund",                     cat: "Refund",  icon: "replay",                 color: "bg-secondary-container", min: 10,    max: 200    },
+  "United States": [
+    "Marcus Johnson", "Sarah Williams", "James Thompson", "Emily Davis", "Michael Brown",
+    "Ashley Martinez", "Robert Wilson", "Jennifer Anderson", "David Taylor", "Jessica Moore",
+    "Christopher Jackson", "Amanda White", "Matthew Harris", "Stephanie Lewis", "Daniel Clark",
+    "Nicole Robinson", "Joshua Walker", "Megan Hall", "Andrew Young", "Brittany King",
+  ],
+  "United Kingdom": [
+    "Oliver Smith", "Emma Jones", "Harry Williams", "Sophie Taylor", "Jack Brown",
+    "Isabella Davies", "George Evans", "Mia Wilson", "Charlie Thomas", "Amelia Roberts",
+    "James Johnson", "Lily Robinson", "William White", "Ella Lewis", "Thomas Walker",
+    "Grace Hall", "Benjamin Green", "Hannah Young", "Samuel King", "Lucy Wright",
+  ],
+  Ghana: [
+    "Kwame Mensah", "Akosua Asante", "Kofi Boateng", "Abena Owusu", "Kweku Amoah",
+    "Ama Darko", "Yaw Osei", "Efua Aidoo", "Nana Adjei", "Adwoa Amponsah",
+    "Kojo Frimpong", "Adjoa Gyasi", "Fiifi Ansah", "Maame Dankwa", "Kobby Tetteh",
+  ],
+  "South Africa": [
+    "Sipho Dlamini", "Nomsa Khumalo", "Thabo Nkosi", "Zanele Mokoena", "Bongani Zulu",
+    "Lerato Molefe", "Themba Ndlovu", "Palesa Sithole", "Lungelo Mthembu", "Ayanda Ntuli",
+    "Dylan van der Berg", "Chloé Botha", "Ryan Pretorius", "Megan Venter", "Liam Joubert",
+  ],
+  Canada: [
+    "Liam MacDonald", "Emma Tremblay", "Noah Gagnon", "Olivia Côté", "William Leblanc",
+    "Ava Roy", "James Bouchard", "Sophie Lavoie", "Benjamin Gauthier", "Charlotte Fortin",
+    "Ethan Morin", "Mia Ouellet", "Alexander Hébert", "Isabelle Girard", "Lucas Lefebvre",
+  ],
+  Australia: [
+    "Liam Smith", "Olivia Jones", "Noah Williams", "Ava Brown", "Jack Wilson",
+    "Charlotte Taylor", "Oliver Johnson", "Mia White", "William Martin", "Amelia Thompson",
+    "James Anderson", "Grace Moore", "Henry Martin", "Chloe Jackson", "George Harris",
+  ],
+  Germany: [
+    "Lukas Müller", "Anna Schmidt", "Felix Weber", "Laura Fischer", "Jonas Meyer",
+    "Julia Wagner", "Maximilian Becker", "Lena Schulz", "David Hofmann", "Sarah Richter",
+    "Tim Koch", "Hannah Bauer", "Leon Schäfer", "Sophie Zimmermann", "Moritz Braun",
+  ],
+  India: [
+    "Arjun Sharma", "Priya Patel", "Rahul Singh", "Pooja Gupta", "Vikram Kumar",
+    "Anjali Verma", "Rohit Mehta", "Deepa Nair", "Sanjay Reddy", "Sneha Iyer",
+    "Amit Joshi", "Kavya Menon", "Nikhil Rao", "Shreya Pillai", "Karthik Nair",
+  ],
+  default: [
+    "Alex Morgan", "Jordan Lee", "Taylor Smith", "Casey Brown", "Riley Davis",
+    "Morgan Wilson", "Quinn Johnson", "Blake Anderson", "Avery Martinez", "Drew Thompson",
   ],
 };
 
-export function getTemplatesForCountry(country) {
-  return COUNTRY_TEMPLATES[country] || DEFAULT_TEMPLATES;
+const COMPANIES = {
+  Nigeria: [
+    "Dangote Industries", "GTBank Nigeria", "Access Bank", "First Bank Nigeria",
+    "Zenith Bank", "MTN Nigeria", "Airtel Nigeria", "UBA Nigeria", "Stanbic IBTC",
+  ],
+  "United States": [
+    "Goldman Sachs", "JP Morgan Chase", "Google LLC", "Apple Inc", "Amazon Corp",
+    "Microsoft Corp", "Deloitte & Touche", "PricewaterhouseCoopers", "McKinsey & Co",
+  ],
+  "United Kingdom": [
+    "Barclays Bank", "HSBC UK", "Lloyds Banking Group", "NatWest Group",
+    "Deloitte UK", "PwC UK", "British Airways", "BT Group", "Unilever UK",
+  ],
+  Ghana: [
+    "Ghana Commercial Bank", "Ecobank Ghana", "Standard Chartered Ghana",
+    "MTN Ghana", "Vodafone Ghana", "Ghana Revenue Authority",
+  ],
+  "South Africa": [
+    "Standard Bank SA", "FNB South Africa", "Nedbank", "ABSA Bank",
+    "Capitec Bank", "Vodacom SA", "MTN South Africa", "Telkom SA",
+  ],
+  Canada: [
+    "Royal Bank of Canada", "TD Canada Trust", "Scotiabank", "CIBC",
+    "BMO Financial Group", "Government of Canada", "Air Canada",
+  ],
+  Australia: [
+    "Commonwealth Bank", "ANZ Bank", "Westpac Banking", "NAB Australia",
+    "Qantas Airways", "BHP Group", "Telstra Corp",
+  ],
+  Germany: [
+    "Deutsche Bank", "Commerzbank", "Volkswagen AG", "BMW Group",
+    "Siemens AG", "SAP SE", "Allianz Group",
+  ],
+  India: [
+    "State Bank of India", "HDFC Bank", "ICICI Bank", "Axis Bank",
+    "Infosys Ltd", "Tata Consultancy", "Wipro Technologies", "Reliance Industries",
+  ],
+  default: [
+    "Global Finance Corp", "Metro Bank", "City Employers Ltd",
+    "Digital Solutions Inc", "Premier Services Group",
+  ],
+};
+
+const BILLS = {
+  Nigeria: [
+    { desc: "EKEDC Electricity Token",   cat: "Bills", icon: "bolt",       color: "bg-tertiary-fixed",         min: 5000,  max: 30000  },
+    { desc: "MTN Airtime & Data",        cat: "Bills", icon: "phone",      color: "bg-secondary-container",    min: 1000,  max: 10000  },
+    { desc: "DSTV Subscription",         cat: "Bills", icon: "tv",         color: "bg-error-container",        min: 2900,  max: 24500  },
+    { desc: "Lagos Water Corporation",   cat: "Bills", icon: "water_drop", color: "bg-tertiary-fixed",         min: 2000,  max: 8000   },
+    { desc: "Airtel Data Bundle",        cat: "Bills", icon: "wifi",       color: "bg-secondary-container",    min: 1000,  max: 8000   },
+    { desc: "Glo Monthly Plan",          cat: "Bills", icon: "phone",      color: "bg-secondary-container",    min: 500,   max: 5000   },
+    { desc: "Showmax Subscription",      cat: "Bills", icon: "subscriptions", color: "bg-error-container",    min: 1200,  max: 2900   },
+  ],
+  "United States": [
+    { desc: "Con Edison Electric Bill",  cat: "Bills", icon: "bolt",       color: "bg-tertiary-fixed",         min: 80,    max: 220    },
+    { desc: "Verizon Wireless",          cat: "Bills", icon: "phone",      color: "bg-secondary-container",    min: 60,    max: 150    },
+    { desc: "Netflix Subscription",      cat: "Bills", icon: "subscriptions", color: "bg-error-container",    min: 15,    max: 23     },
+    { desc: "AT&T Internet",             cat: "Bills", icon: "wifi",       color: "bg-secondary-container",    min: 50,    max: 100    },
+    { desc: "National Gas & Water",      cat: "Bills", icon: "water_drop", color: "bg-tertiary-fixed",         min: 40,    max: 120    },
+    { desc: "Spotify Premium",           cat: "Bills", icon: "music_note", color: "bg-error-container",        min: 10,    max: 16     },
+    { desc: "Hulu + Live TV",            cat: "Bills", icon: "tv",         color: "bg-error-container",        min: 8,     max: 76     },
+  ],
+  "United Kingdom": [
+    { desc: "EDF Energy Bill",           cat: "Bills", icon: "bolt",       color: "bg-tertiary-fixed",         min: 60,    max: 200    },
+    { desc: "BT Broadband",              cat: "Bills", icon: "wifi",       color: "bg-secondary-container",    min: 30,    max: 60     },
+    { desc: "Sky TV & Broadband",        cat: "Bills", icon: "tv",         color: "bg-error-container",        min: 25,    max: 80     },
+    { desc: "Thames Water",              cat: "Bills", icon: "water_drop", color: "bg-tertiary-fixed",         min: 30,    max: 80     },
+    { desc: "BBC TV Licence",            cat: "Bills", icon: "subscriptions", color: "bg-error-container",    min: 13,    max: 13     },
+    { desc: "O2 Monthly Plan",           cat: "Bills", icon: "phone",      color: "bg-secondary-container",    min: 20,    max: 60     },
+    { desc: "Netflix UK",                cat: "Bills", icon: "subscriptions", color: "bg-error-container",    min: 10,    max: 18     },
+  ],
+  Ghana: [
+    { desc: "ECG Electricity Bill",      cat: "Bills", icon: "bolt",       color: "bg-tertiary-fixed",         min: 80,    max: 500    },
+    { desc: "MTN Mobile Money",          cat: "Bills", icon: "phone",      color: "bg-secondary-container",    min: 20,    max: 300    },
+    { desc: "Vodafone Data Bundle",      cat: "Bills", icon: "wifi",       color: "bg-secondary-container",    min: 20,    max: 200    },
+    { desc: "MultiChoice DStv",          cat: "Bills", icon: "tv",         color: "bg-error-container",        min: 50,    max: 250    },
+    { desc: "Ghana Water Company",       cat: "Bills", icon: "water_drop", color: "bg-tertiary-fixed",         min: 30,    max: 150    },
+  ],
+  "South Africa": [
+    { desc: "Eskom Electricity",         cat: "Bills", icon: "bolt",       color: "bg-tertiary-fixed",         min: 500,   max: 2000   },
+    { desc: "Vodacom Monthly Plan",      cat: "Bills", icon: "phone",      color: "bg-secondary-container",    min: 200,   max: 600    },
+    { desc: "MultiChoice DStv",          cat: "Bills", icon: "tv",         color: "bg-error-container",        min: 120,   max: 850    },
+    { desc: "City of Cape Town Water",   cat: "Bills", icon: "water_drop", color: "bg-tertiary-fixed",         min: 200,   max: 800    },
+    { desc: "Telkom Fibre",              cat: "Bills", icon: "wifi",       color: "bg-secondary-container",    min: 400,   max: 1000   },
+  ],
+  Canada: [
+    { desc: "Hydro One Electric",        cat: "Bills", icon: "bolt",       color: "bg-tertiary-fixed",         min: 80,    max: 250    },
+    { desc: "Rogers Wireless",           cat: "Bills", icon: "phone",      color: "bg-secondary-container",    min: 60,    max: 120    },
+    { desc: "Netflix Canada",            cat: "Bills", icon: "subscriptions", color: "bg-error-container",    min: 10,    max: 20     },
+    { desc: "Bell Internet",             cat: "Bills", icon: "wifi",       color: "bg-secondary-container",    min: 50,    max: 100    },
+    { desc: "City Water & Sewage",       cat: "Bills", icon: "water_drop", color: "bg-tertiary-fixed",         min: 40,    max: 120    },
+  ],
+  Australia: [
+    { desc: "AGL Energy Bill",           cat: "Bills", icon: "bolt",       color: "bg-tertiary-fixed",         min: 100,   max: 400    },
+    { desc: "Optus Mobile Plan",         cat: "Bills", icon: "phone",      color: "bg-secondary-container",    min: 40,    max: 100    },
+    { desc: "Netflix Australia",         cat: "Bills", icon: "subscriptions", color: "bg-error-container",    min: 10,    max: 22     },
+    { desc: "Sydney Water",              cat: "Bills", icon: "water_drop", color: "bg-tertiary-fixed",         min: 60,    max: 200    },
+    { desc: "Telstra Internet",          cat: "Bills", icon: "wifi",       color: "bg-secondary-container",    min: 50,    max: 110    },
+  ],
+  Germany: [
+    { desc: "Vattenfall Strom",          cat: "Bills", icon: "bolt",       color: "bg-tertiary-fixed",         min: 60,    max: 200    },
+    { desc: "Deutsche Telekom",          cat: "Bills", icon: "phone",      color: "bg-secondary-container",    min: 30,    max: 80     },
+    { desc: "Netflix Deutschland",       cat: "Bills", icon: "subscriptions", color: "bg-error-container",    min: 10,    max: 18     },
+    { desc: "Berliner Wasserbetriebe",   cat: "Bills", icon: "water_drop", color: "bg-tertiary-fixed",         min: 40,    max: 120    },
+    { desc: "O2 Mobilfunk",             cat: "Bills", icon: "wifi",       color: "bg-secondary-container",    min: 20,    max: 60     },
+  ],
+  India: [
+    { desc: "BSES Electricity Bill",     cat: "Bills", icon: "bolt",       color: "bg-tertiary-fixed",         min: 500,   max: 5000   },
+    { desc: "Jio Recharge",              cat: "Bills", icon: "phone",      color: "bg-secondary-container",    min: 149,   max: 999    },
+    { desc: "Netflix India",             cat: "Bills", icon: "subscriptions", color: "bg-error-container",    min: 149,   max: 649    },
+    { desc: "Airtel Broadband",          cat: "Bills", icon: "wifi",       color: "bg-secondary-container",    min: 499,   max: 1499   },
+    { desc: "Municipal Water Bill",      cat: "Bills", icon: "water_drop", color: "bg-tertiary-fixed",         min: 200,   max: 1000   },
+  ],
+  default: [
+    { desc: "Electricity Bill",          cat: "Bills", icon: "bolt",       color: "bg-tertiary-fixed",         min: 50,    max: 200    },
+    { desc: "Phone Bill",                cat: "Bills", icon: "phone",      color: "bg-secondary-container",    min: 30,    max: 100    },
+    { desc: "Streaming Subscription",    cat: "Bills", icon: "subscriptions", color: "bg-error-container",    min: 10,    max: 25     },
+    { desc: "Water Bill",                cat: "Bills", icon: "water_drop", color: "bg-tertiary-fixed",         min: 30,    max: 100    },
+    { desc: "Internet Bill",             cat: "Bills", icon: "wifi",       color: "bg-secondary-container",    min: 30,    max: 80     },
+  ],
+};
+
+const RENT = {
+  Nigeria:          { min: 50000,  max: 300000 },
+  "United States":  { min: 1200,   max: 4500   },
+  "United Kingdom": { min: 800,    max: 3500   },
+  Ghana:            { min: 500,    max: 4000   },
+  "South Africa":   { min: 3000,   max: 18000  },
+  Canada:           { min: 1500,   max: 4000   },
+  Australia:        { min: 1500,   max: 5000   },
+  Germany:          { min: 700,    max: 3000   },
+  India:            { min: 8000,   max: 80000  },
+  default:          { min: 500,    max: 3000   },
+};
+
+function getRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function randAmount(min, max) { return Math.round((Math.random() * (max - min) + min) * 100) / 100; }
+function randTime() {
+  const h = String(Math.floor(Math.random() * 12) + 1).padStart(2, "0");
+  const m = String(Math.floor(Math.random() * 60)).padStart(2, "0");
+  return `${h}:${m}:00 ${Math.random() > 0.5 ? "AM" : "PM"}`;
+}
+function randDateInRange(start, end) {
+  const s = new Date(start).getTime();
+  const e = new Date(end).getTime();
+  return new Date(s + Math.random() * (e - s));
+}
+function formatDate(d) {
+  return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 export function generateTransactionsForCountry(balance, country, startDate, endDate) {
-  const templates  = getTemplatesForCountry(country);
-  const start      = new Date(startDate);
-  const end        = new Date(endDate);
-  const dayRange   = Math.max(1, Math.floor((end - start) / (1000 * 60 * 60 * 24)));
-  const count      = Math.min(Math.max(10, Math.floor(dayRange / 3)), 30);
+  const names     = NAMES[country]     || NAMES.default;
+  const companies = COMPANIES[country] || COMPANIES.default;
+  const bills     = BILLS[country]     || BILLS.default;
+  const rent      = RENT[country]      || RENT.default;
+
+  const dayRange  = Math.max(1, Math.floor((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)));
+  const count     = Math.min(Math.max(12, Math.floor(dayRange / 2.5)), 35);
 
   const transactions = [];
   let runningBalance = balance;
 
-  for (let i = 0; i < count; i++) {
-    const isCredit  = Math.random() > 0.55;
-    const list      = isCredit ? templates.credits : templates.debits;
-    const template  = list[Math.floor(Math.random() * list.length)];
-    const amount    = Math.round((Math.random() * (template.max - template.min) + template.min) * 100) / 100;
+  // Always start with salary
+  const salaryAmount = randAmount(
+    (rent.min * 3),
+    Math.max(rent.min * 6, balance * 0.4)
+  );
+  const salaryCompany = getRandom(companies);
+  transactions.push({
+    id:          `TXN${Date.now()}SAL`,
+    type:        "received",
+    amount:      salaryAmount,
+    description: `Salary — ${salaryCompany}`,
+    date:        formatDate(randDateInRange(startDate, endDate)),
+    time:        "09:00:00 AM",
+    status:      "Completed",
+    category:    "Income",
+    icon:        "account_balance_wallet",
+    color:       "bg-primary-fixed",
+  });
+  runningBalance += salaryAmount;
 
-    if (!isCredit && amount > runningBalance * 0.8) continue;
-    runningBalance = isCredit ? runningBalance + amount : runningBalance - amount;
-
-    // Random date within range
-    const randomDay = Math.floor(Math.random() * dayRange);
-    const txDate    = new Date(start.getTime() + randomDay * 24 * 60 * 60 * 1000);
-
+  // Always add rent
+  const rentAmount = randAmount(rent.min, rent.max);
+  if (rentAmount < runningBalance * 0.6) {
     transactions.push({
-      id:          `TXN${Date.now()}${i}${Math.floor(Math.random() * 9999)}`,
-      type:        isCredit ? "received" : "sent",
-      amount,
-      description: template.desc,
-      date:        txDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-      time:        `${String(Math.floor(Math.random() * 12) + 1).padStart(2, "0")}:${String(Math.floor(Math.random() * 60)).padStart(2, "0")}:00 ${Math.random() > 0.5 ? "AM" : "PM"}`,
+      id:          `TXN${Date.now()}RENT`,
+      type:        "sent",
+      amount:      rentAmount,
+      description: "Rent Payment",
+      date:        formatDate(randDateInRange(startDate, endDate)),
+      time:        "10:00:00 AM",
       status:      "Completed",
-      category:    template.cat,
-      icon:        template.icon,
-      color:       template.color,
+      category:    "Housing",
+      icon:        "home",
+      color:       "bg-primary-fixed",
+    });
+    runningBalance -= rentAmount;
+  }
+
+  // Fill remaining transactions
+  for (let i = 0; i < count; i++) {
+    const roll = Math.random();
+    let txn;
+
+    if (roll < 0.25) {
+      // Money received from a person
+      const name   = getRandom(names);
+      const amount = randAmount(runningBalance * 0.02, runningBalance * 0.15);
+      runningBalance += amount;
+      txn = {
+        type:        "received",
+        amount,
+        description: `Transfer from ${name}`,
+        category:    "Transfer",
+        icon:        "payments",
+        color:       "bg-secondary-container",
+      };
+    } else if (roll < 0.50) {
+      // Money sent to a person
+      const name   = getRandom(names);
+      const amount = randAmount(runningBalance * 0.01, runningBalance * 0.12);
+      if (amount > runningBalance * 0.5) continue;
+      runningBalance -= amount;
+      txn = {
+        type:        "sent",
+        amount,
+        description: `Transfer to ${name}`,
+        category:    "Transfer",
+        icon:        "send",
+        color:       "bg-error-container",
+      };
+    } else if (roll < 0.75) {
+      // Bill payment
+      const bill   = getRandom(bills);
+      const amount = randAmount(bill.min, bill.max);
+      if (amount > runningBalance * 0.5) continue;
+      runningBalance -= amount;
+      txn = {
+        type:        "bill",
+        amount,
+        description: bill.desc,
+        category:    bill.cat,
+        icon:        bill.icon,
+        color:       bill.color,
+      };
+    } else {
+      // Freelance / extra income
+      const amount = randAmount(runningBalance * 0.03, runningBalance * 0.2);
+      runningBalance += amount;
+      txn = {
+        type:        "received",
+        amount,
+        description: `Freelance Payment — ${getRandom(companies)}`,
+        category:    "Income",
+        icon:        "work",
+        color:       "bg-primary-fixed",
+      };
+    }
+
+    const txDate = randDateInRange(startDate, endDate);
+    transactions.push({
+      id:     `TXN${Date.now()}${i}${Math.floor(Math.random() * 9999)}`,
+      status: "Completed",
+      date:   formatDate(txDate),
+      time:   randTime(),
+      ...txn,
     });
   }
 
