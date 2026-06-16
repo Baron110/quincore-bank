@@ -126,7 +126,7 @@ function UserModal({ user, onClose, onUpdate }) {
   const handleGenerateHistory = async () => {
     setSaving(true); setSuccessMsg(""); setErrorMsg("");
     try {
-      const newTxns = generateTransactionsForCountry(
+     
         user.balance || 0,
         user.country || "United States",
         histStartDate,
