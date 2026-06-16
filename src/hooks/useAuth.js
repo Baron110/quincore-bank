@@ -3,10 +3,16 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebaseConfig";
 
 export function useAuth() {
-  const [user, setUser] = useState(undefined); // undefined = loading
+  const [user,    setUser]    = useState(undefined);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => setUser(u));
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setLoading(false);
+    });
     return () => unsub();
   }, []);
-  return user;
+
+  return { user, loading };
 }
