@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { collection, getDocs, doc, updateDoc, deleteDoc, arrayUnion } from "firebase/firestore";
 import { db } from "./firebaseConfig";
-import { generateTransactionsForCountry } from "../utils/transactionTemplates";
+
 
 const ADMIN_EMAIL    = "admin@quincore.online";
 const ADMIN_PASSWORD = "QuinCore@Admin2026";
