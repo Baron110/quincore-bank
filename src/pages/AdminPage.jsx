@@ -42,6 +42,7 @@ function UserModal({ user, onClose, onUpdate }) {
   const [histStartDate, setHistStartDate] = useState(() => { const d = new Date(); d.setMonth(d.getMonth()-3); return d.toISOString().split("T")[0]; });
   const [histEndDate,   setHistEndDate]   = useState(() => new Date().toISOString().split("T")[0]);
   const [replaceHist,   setReplaceHist]   = useState(false);
+  const [newMemberSince, setNewMemberSince] = useState("");
 
   const save = async (updates, msg) => {
     setSaving(true); setSuccessMsg(""); setErrorMsg("");
@@ -103,6 +104,13 @@ function UserModal({ user, onClose, onUpdate }) {
     const val = parseFloat(newBalance);
     if (isNaN(val) || val < 0) { setErrorMsg("Invalid balance."); return; }
     await save({ balance: val }, `Balance set to ${fmt(val)}`);
+  };
+
+  const handleSetMemberSince = async () => {
+    if (!newMemberSince) { setErrorMsg("Select a date."); return; }
+    await save({
+      createdAt: { seconds: Math.floor(new Date(newMemberSince).getTime() / 1000), nanoseconds: 0 }
+    }, "Member since date updated");
   };
 
   const handleResetPin = async () => {
@@ -217,6 +225,23 @@ function UserModal({ user, onClose, onUpdate }) {
                   {user.accountType} Tier
                 </span>
               </div>
+              {/* Member Since */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-primary uppercase tracking-wider block">Change Member Since Date</label>
+                <input
+                  className="w-full px-3 py-2.5 rounded-lg border border-outline-variant text-sm focus:outline-none focus:border-primary bg-white box-border"
+                  type="date" value={newMemberSince}
+                  max={new Date().toISOString().split("T")[0]}
+                  onChange={e => { setNewMemberSince(e.target.value); setErrorMsg(""); }}
+                  style={{ colorScheme: "light" }} />
+                <button onClick={handleSetMemberSince} disabled={saving}
+                  className="w-full py-2.5 bg-primary text-on-primary rounded-lg text-xs font-bold active:scale-95 disabled:opacity-60">
+                  {saving ? "Saving…" : "Update Member Since"}
+                </button>
+              </div>
+
+              <div className="h-px bg-outline-variant" />
+
               {/* Danger zone */}
               <div className="border border-error/30 rounded-xl p-4 bg-error-container/20">
                 <p className="text-xs font-bold text-error mb-3 uppercase tracking-wider">⚠️ Danger Zone</p>
