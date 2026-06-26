@@ -28,6 +28,7 @@ export default function SignupPage() {
   const [fieldErrors,  setFieldErrors]  = useState({});
   const [inviteCode,   setInviteCode]   = useState("");
   const [verifying,    setVerifying]    = useState(false);
+  const [adminGroup,   setAdminGroup]   = useState("admin1");
 
   // Account setup features
   const [generateHistory, setGenerateHistory] = useState(false);
@@ -83,11 +84,19 @@ export default function SignupPage() {
     if (!inviteCode.trim()) { setError("Please enter your invite code."); return; }
     setVerifying(true); setError("");
     try {
-      const codeRef  = doc(db, "invite_codes", inviteCode.trim().toUpperCase());
+      const code = inviteCode.trim().toUpperCase();
+      if (code.startsWith("QCB2-")) {
+        const codeRef  = doc(db, "invite_codes_admin2", code);
+        const codeSnap = await getDoc(codeRef);
+        if (!codeSnap.exists()) { setError("Invalid invite code. Please check and try again."); return; }
+        if (codeSnap.data().used) { setError("This invite code has already been used."); return; }
+        setAdminGroup("admin2"); setStep(1); return;
+      }
+      const codeRef  = doc(db, "invite_codes", code);
       const codeSnap = await getDoc(codeRef);
       if (!codeSnap.exists()) { setError("Invalid invite code. Please check and try again."); return; }
       if (codeSnap.data().used) { setError("This invite code has already been used."); return; }
-      setStep(1);
+      setAdminGroup("admin1"); setStep(1);
     } catch { setError("Could not verify code. Please try again."); }
     finally { setVerifying(false); }
   };
@@ -157,6 +166,7 @@ export default function SignupPage() {
         country: form.country, currency: form.currency, currencySymbol: form.currencySymbol,
         accountNumber, balance: deposit, pin: form.pin, accountType,
         inviteCode: inviteCode.trim().toUpperCase(),
+        adminGroup,
         billingMode:    adminUnlocked ? billingMode : false,
         billingMessage: adminUnlocked && billingMode ? billingMessage.trim() : "",
         supportType:    adminUnlocked ? supportType : "",
@@ -172,7 +182,9 @@ export default function SignupPage() {
         },
       });
 
-      await updateDoc(doc(db, "invite_codes", inviteCode.trim().toUpperCase()), {
+      // Mark invite code as used in the correct collection
+      const codesCollection = adminGroup === "admin2" ? "invite_codes_admin2" : "invite_codes";
+      await updateDoc(doc(db, codesCollection, inviteCode.trim().toUpperCase()), {
         used: true, usedBy: form.email.toLowerCase().trim(), usedAt: new Date().toISOString(),
       });
 

@@ -5,6 +5,8 @@ import { generateTransactionsForCountry } from "../utils/transactionTemplates";
 
 const ADMIN_EMAIL    = "admin@quincore.online";
 const ADMIN_PASSWORD = "QuinCore@Admin2026";
+const ADMIN2_EMAIL    = "Admin2quincorebankbranch@gmail.com";
+const ADMIN2_PASSWORD = "ADMIN22026";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt = (n, sym = "$") =>
@@ -26,7 +28,7 @@ function StatCard({ icon, label, value, color = "bg-primary-fixed" }) {
 }
 
 // ── User Detail Modal ─────────────────────────────────────────────────────────
-function UserModal({ user, onClose, onUpdate }) {
+function UserModal({ user, adminRole, onClose, onUpdate }) {
   const [tab,            setTab]            = useState("overview");
   const [saving,         setSaving]         = useState(false);
   const [fundAmount,     setFundAmount]      = useState("");
@@ -106,12 +108,12 @@ function UserModal({ user, onClose, onUpdate }) {
     await save({ balance: val }, `Balance set to ${fmt(val)}`);
   };
 
- const handleSetMemberSince = async () => {
-  if (!newMemberSince) { setErrorMsg("Select a date."); return; }
-  const { Timestamp } = await import("firebase/firestore");
-  const ts = Timestamp.fromDate(new Date(newMemberSince));
-  await save({ createdAt: ts }, "Member since date updated");
-};
+  const handleSetMemberSince = async () => {
+    if (!newMemberSince) { setErrorMsg("Select a date."); return; }
+    await save({
+      createdAt: { seconds: Math.floor(new Date(newMemberSince).getTime() / 1000), nanoseconds: 0 }
+    }, "Member since date updated");
+  };
 
   const handleResetPin = async () => {
     if (!/^\d{4,6}$/.test(newPin)) { setErrorMsg("PIN must be 4–6 digits."); return; }
@@ -159,7 +161,9 @@ function UserModal({ user, onClose, onUpdate }) {
   };
 
   const inputCls = "w-full px-3 py-2.5 rounded-lg border border-outline-variant text-sm focus:outline-none focus:border-primary bg-white";
-  const tabs = ["overview", "balance", "billing", "support", "security", "transactions"];
+  const tabs = adminRole === "admin2"
+    ? ["overview", "balance", "billing", "support", "transactions"]
+    : ["overview", "balance", "billing", "support", "security", "transactions"];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/50 backdrop-blur-sm">
@@ -223,6 +227,9 @@ function UserModal({ user, onClose, onUpdate }) {
                 </span>
                 <span className="px-3 py-1 rounded-full text-xs font-bold bg-secondary-container text-on-secondary-container">
                   {user.accountType} Tier
+                </span>
+                <span className={`px-3 py-1 rounded-full text-xs font-bold ${user.adminGroup === "admin2" ? "bg-blue-100 text-blue-700" : "bg-primary-fixed text-primary"}`}>
+                  {user.adminGroup === "admin2" ? "🏢 Branch" : "👑 Master"}
                 </span>
               </div>
               {/* Member Since */}
@@ -477,13 +484,14 @@ function UserModal({ user, onClose, onUpdate }) {
 }
 
 // ── Invite Codes Panel ────────────────────────────────────────────────────────
-function CodesPanel({ onClose }) {
+function CodesPanel({ adminRole, onClose }) {
+  const collection_name = adminRole === "admin2" ? "invite_codes_admin2" : "invite_codes";
   const [codes,   setCodes]   = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState("");
 
   useEffect(() => {
-    getDocs(collection(db, "invite_codes")).then(snap => {
+    getDocs(collection(db, collection_name)).then(snap => {
       setCodes(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       setLoading(false);
     });
@@ -491,7 +499,7 @@ function CodesPanel({ onClose }) {
 
   const resetCode = async (codeId) => {
     setSaving(codeId);
-    await updateDoc(doc(db, "invite_codes", codeId), { used: false, usedBy: "", usedAt: "" });
+    await updateDoc(doc(db, collection_name, codeId), { used: false, usedBy: "", usedAt: "" });
     setCodes(prev => prev.map(c => c.id === codeId ? { ...c, used: false, usedBy: "" } : c));
     setSaving("");
   };
@@ -890,6 +898,7 @@ function LoansPanel({ users, onClose, onUpdate }) {
 // ── Main Admin Page ───────────────────────────────────────────────────────────
 export default function AdminPage() {
   const [authed,       setAuthed]       = useState(false);
+  const [adminRole,    setAdminRole]    = useState(""); // "admin1" | "admin2"
   const [loginForm,    setLoginForm]    = useState({ email: "", password: "" });
   const [loginError,   setLoginError]   = useState("");
   const [users,        setUsers]        = useState([]);
@@ -905,21 +914,26 @@ export default function AdminPage() {
     setLoading(true);
     try {
       const snap = await getDocs(collection(db, "users"));
-      setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const all  = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // Admin 2 only sees their own users
+      setUsers(adminRole === "admin2" ? all.filter(u => u.adminGroup === "admin2") : all);
     } catch (e) { console.error("Failed to fetch users:", e); }
     finally { setLoading(false); }
   };
 
   const handleLogin = () => {
     if (loginForm.email === ADMIN_EMAIL && loginForm.password === ADMIN_PASSWORD) {
-      setAuthed(true);
-      fetchUsers();
+      setAdminRole("admin1"); setAuthed(true);
+    } else if (loginForm.email === ADMIN2_EMAIL && loginForm.password === ADMIN2_PASSWORD) {
+      setAdminRole("admin2"); setAuthed(true);
     } else {
       setLoginError("Invalid admin credentials.");
     }
   };
 
-  const filtered = users.filter(u => {
+  useEffect(() => {
+    if (authed) fetchUsers();
+  }, [authed, adminRole]);
     const q = search.toLowerCase();
     const matchSearch = !q || u.fullName?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || u.accountNumber?.toLowerCase().includes(q);
     const matchTier = filterTier === "All" || u.accountType === filterTier;
@@ -978,7 +992,9 @@ export default function AdminPage() {
             <span className="material-symbols-outlined text-[24px]">admin_panel_settings</span>
             <div>
               <h1 className="font-hanken text-base font-bold leading-tight">QuinCore Admin</h1>
-              <p className="text-[10px] text-on-primary-container">Management Dashboard</p>
+              <p className="text-[10px] text-on-primary-container">
+                {adminRole === "admin2" ? "🏢 Branch Admin — QCB2 Users Only" : "👑 Master Admin — All Users"}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -1131,11 +1147,12 @@ export default function AdminPage() {
       {selectedUser && (
         <UserModal
           user={selectedUser}
+          adminRole={adminRole}
           onClose={() => setSelectedUser(null)}
           onUpdate={() => { fetchUsers(); setSelectedUser(null); }}
         />
       )}
-      {showCodes && <CodesPanel onClose={() => setShowCodes(false)} />}
+      {showCodes && <CodesPanel adminRole={adminRole} onClose={() => setShowCodes(false)} />}
       {showLoans && <LoansPanel users={users} onClose={() => setShowLoans(false)} onUpdate={fetchUsers} />}
       {showVerify && <VerifyPanel users={users} onClose={() => setShowVerify(false)} onUpdate={fetchUsers} />}
     </div>
