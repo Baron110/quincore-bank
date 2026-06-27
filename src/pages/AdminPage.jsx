@@ -934,6 +934,8 @@ export default function AdminPage() {
   useEffect(() => {
     if (authed) fetchUsers();
   }, [authed, adminRole]);
+
+  const filtered = users.filter(u => {
     const q = search.toLowerCase();
     const matchSearch = !q || u.fullName?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || u.accountNumber?.toLowerCase().includes(q);
     const matchTier = filterTier === "All" || u.accountType === filterTier;
