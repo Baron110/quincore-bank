@@ -495,7 +495,7 @@ function CodesPanel({ adminRole, onClose }) {
       setCodes(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       setLoading(false);
     });
-  }, []);
+  }, [collection_name]);
 
   const resetCode = async (codeId) => {
     setSaving(codeId);
@@ -933,6 +933,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (authed) fetchUsers();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authed, adminRole]);
 
   const filtered = users.filter(u => {
