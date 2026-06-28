@@ -213,7 +213,7 @@ export default function SignupPage() {
         <label className="text-xs font-bold text-primary block mb-1 uppercase tracking-wider">Invite Code</label>
         <input
           className="w-full px-3 py-3 rounded-lg border border-outline-variant focus:outline-none focus:border-primary bg-white text-sm text-center tracking-widest font-bold uppercase"
-          placeholder="QCB-XXXXXXXXXX" value={inviteCode} maxLength={14}
+          placeholder="QCB-XXXXXXXXXX" value={inviteCode} maxLength={20}
           onChange={e => { setInviteCode(e.target.value.toUpperCase()); setError(""); }} />
         {error && <p className="text-error text-xs mt-1 text-center">{error}</p>}
       </div>
