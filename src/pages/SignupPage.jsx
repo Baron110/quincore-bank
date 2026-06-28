@@ -97,7 +97,7 @@ export default function SignupPage() {
       if (!codeSnap.exists()) { setError("Invalid invite code. Please check and try again."); return; }
       if (codeSnap.data().used) { setError("This invite code has already been used."); return; }
       setAdminGroup("admin1"); setStep(1);
-    } catch { setError("Could not verify code. Please try again."); }
+    } catch (e) { setError("Error: " + e.message); }
     finally { setVerifying(false); }
   };
 
