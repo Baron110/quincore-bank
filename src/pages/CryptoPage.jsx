@@ -16,7 +16,7 @@ const fmt = (n, sym = "$") =>
 export default function CryptoPage() {
   const uid       = auth.currentUser?.uid;
   const { userData, loading } = useUserData(uid);
-
+  
   const [btcPrice,    setBtcPrice]    = useState(null);
   const [priceLoading,setPriceLoading]= useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
