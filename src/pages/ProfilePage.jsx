@@ -4,9 +4,47 @@ import { signOut } from "firebase/auth";
 import { db, auth } from "../firebaseConfig";
 import { useUserData } from "../hooks/useUserData";
 import { useNavigate } from "react-router-dom";
+import { LANGUAGES } from "../utils/languages";
+import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import MobileNav from "../components/MobileNav";
 import Header from "../components/Header";
+
+function LanguageSwitcher({ userData, uid }) {
+  const [saving, setSaving] = useState(false);
+  const [saved,  setSaved]  = useState(false);
+  const currentLang = userData?.language || "en";
+
+  const handleChange = async (e) => {
+    setSaving(true);
+    try {
+      await updateDoc(doc(db, "users", uid), { language: e.target.value });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <span className="material-symbols-outlined text-primary text-[20px]">language</span>
+        <p className="text-sm font-bold text-primary">Language</p>
+        {saved && <span className="text-xs text-green-600 font-bold ml-auto">✓ Saved</span>}
+      </div>
+      <select
+        className="w-full px-3 py-3 rounded-lg border border-outline-variant focus:outline-none focus:border-primary bg-white text-sm"
+        value={currentLang}
+        onChange={handleChange}
+        disabled={saving}>
+        {LANGUAGES.sort((a,b) => a.name.localeCompare(b.name)).map(lang => (
+          <option key={lang.code} value={lang.code}>
+            {lang.flag} {lang.name} — {lang.nativeName}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
 
 export default function ProfilePage() {
   const uid        = auth.currentUser?.uid;
@@ -298,6 +336,16 @@ export default function ProfilePage() {
             <span className="material-symbols-outlined text-[18px]">receipt_long</span>
             Generate Bank Cheque
           </button>
+
+          {/* Crypto Button */}
+          <button onClick={() => navigate("/crypto")}
+            className="w-full bg-amber-500 text-white text-xs font-bold px-6 py-4 rounded-xl active:scale-95 transition-transform flex items-center justify-center gap-2">
+            <span className="material-symbols-outlined text-[18px]">currency_bitcoin</span>
+            Crypto — Send Bitcoin (BTC)
+          </button>
+
+          {/* Language Switcher */}
+          <LanguageSwitcher userData={userData} uid={uid} />
 
           {/* Existing Loan Applications */}
           {(userData.loanApplications || []).length > 0 && (

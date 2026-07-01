@@ -88,8 +88,8 @@ export default function DashboardPage() {
   const [pinInput,     setPinInput]     = useState("");
 
   // Form states
-  const [sendMethod,      setSendMethod]      = useState("email"); // "email" | "account"
-  const [sendForm,        setSendForm]        = useState({ recipientEmail: "", recipientAccount: "", amount: "", purpose: "" });
+  const [sendMethod,      setSendMethod]      = useState("email"); // "email" | "account" | "cashapp" | "venmo" | "paypal" | "btc"
+  const [sendForm,        setSendForm]        = useState({ recipientEmail: "", recipientAccount: "", amount: "", purpose: "", paymentTag: "", btcAddress: "" });
   const [depositAmt,      setDepositAmt]      = useState("");
   const [requestForm,     setRequestForm]     = useState({ recipientEmail: "", amount: "", note: "" });
   const [billForm,        setBillForm]        = useState({ billType: "", amount: "", ref: "" });
@@ -102,7 +102,7 @@ export default function DashboardPage() {
   const openModal = (name) => {
     setModal(name); setModalStep(1); setModalError("");
     setPinInput(""); setPendingTxn(null); setSendMethod("email");
-    setSendForm({ recipientEmail: "", recipientAccount: "", amount: "", purpose: "" });
+    setSendForm({ recipientEmail: "", recipientAccount: "", amount: "", purpose: "", paymentTag: "", btcAddress: "" });
     setDepositAmt(""); setLookupName(""); setLookupLoading(false);
     setRequestForm({ recipientEmail: "", amount: "", note: "" });
     setBillForm({ billType: "", amount: "", ref: "" });
@@ -159,6 +159,10 @@ export default function DashboardPage() {
     const amount = parseFloat(sendForm.amount);
     if (sendMethod === "email" && !sendForm.recipientEmail) { setModalError("Enter recipient email."); return false; }
     if (sendMethod === "account" && !sendForm.recipientAccount) { setModalError("Enter account number."); return false; }
+    if (["cashapp","venmo","paypal"].includes(sendMethod) && !sendForm.paymentTag.trim()) {
+      setModalError(`Enter ${sendMethod === "cashapp" ? "$cashtag" : sendMethod === "venmo" ? "@username" : "PayPal email"}.`);
+      return false;
+    }
     if (!amount || amount <= 0) { setModalError("Enter a valid amount."); return false; }
     if (sendMethod === "email" && sendForm.recipientEmail.toLowerCase() === userData.email) { setModalError("Cannot send to yourself."); return false; }
     if (amount > userData.balance) { setModalError("Insufficient balance."); return false; }
@@ -169,6 +173,36 @@ export default function DashboardPage() {
     const amount = parseFloat(sendForm.amount);
     const sym    = userData.currencySymbol || "$";
     const senderCurrency = userData.currency || "USD";
+
+    // Handle CashApp, Venmo, PayPal
+    if (["cashapp","venmo","paypal"].includes(sendMethod)) {
+      const platformNames = { cashapp: "CashApp", venmo: "Venmo", paypal: "PayPal" };
+      const platformName  = platformNames[sendMethod];
+      const ts  = nowDateTime();
+      const id  = generateTxnId();
+      await addTxn(uid, {
+        id, type: "sent", amount,
+        description: `${platformName} Transfer — ${sendForm.paymentTag}`,
+        paymentMethod: platformName,
+        paymentTag: sendForm.paymentTag,
+        purpose: sendForm.purpose || "Transfer",
+        ...ts, status: "Completed", category: "Transfer",
+        icon: "send", color: TXN_META.sent.color,
+      }, -amount);
+      navigate("/receipt", { state: {
+        amount: amount.toFixed(2),
+        newBalance: (userData.balance - amount).toFixed(2),
+        symbol: sym,
+        recipientName: `${platformName}: ${sendForm.paymentTag}`,
+        type: "sent",
+        txnId: id,
+        paymentMethod: platformName,
+        paymentTag: sendForm.paymentTag,
+      }});
+      closeModal();
+      return;
+    }
+
     const { getDocs, collection, query, where } = await import("firebase/firestore");
 
     let recipientSnap = null;
@@ -204,6 +238,7 @@ export default function DashboardPage() {
       // ── Currency Conversion ──────────────────────────────────────────────
       let convertedAmount = amount;
       const recipientCurrency = recipientData.currency || "USD";
+      const recipientSym      = recipientData.currencySymbol || "$";
 
       if (senderCurrency !== recipientCurrency) {
         try {
@@ -479,9 +514,9 @@ export default function DashboardPage() {
               <div className="relative z-10 flex justify-between items-start gap-3">
                 <div className="min-w-0">
                   <p className="font-label-md text-on-primary-container text-xs">Available Balance</p>
-                  <h2 className="font-hanken font-bold mt-1 text-2xl md:text-5xl leading-tight">{fmt(userData.balance, sym)}</h2>
+                  <h2 className="font-hanken font-bold mt-1 text-3xl md:text-5xl break-all leading-tight">{fmt(userData.balance, sym)}</h2>
                 </div>
-                <div className="bg-secondary-fixed text-on-secondary-fixed px-1.5 py-0.5 rounded-lg flex items-center gap-0.5 flex-shrink-0 text-[9px] font-bold max-w-[80px]">
+                <div className="bg-secondary-fixed text-on-secondary-fixed px-2 py-1 rounded-lg flex items-center gap-1 flex-shrink-0 text-[10px] font-bold">
                   <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>stars</span>
                   {userData.accountType?.toUpperCase()} TIER
                 </div>
@@ -628,14 +663,26 @@ export default function DashboardPage() {
               {modalError && <p className="text-error text-xs font-semibold">{modalError}</p>}
 
               {/* Send method toggle */}
-              <div className="flex gap-2 p-1 bg-surface-container-low rounded-xl border border-outline-variant/50">
-                {[["email","Via Email","email"],["account","Via Account No.","tag"]].map(([val, label, icon]) => (
-                  <button key={val} type="button" onClick={() => { setSendMethod(val); setModalError(""); }}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${sendMethod === val ? "bg-primary text-on-primary" : "text-on-surface-variant"}`}>
-                    <span className="material-symbols-outlined text-[16px]">{icon}</span>
-                    {label}
-                  </button>
-                ))}
+              <div className="space-y-2">
+                <div className="flex gap-2 p-1 bg-surface-container-low rounded-xl border border-outline-variant/50">
+                  {[["email","Email","email"],["account","Account","tag"]].map(([val, label, icon]) => (
+                    <button key={val} type="button" onClick={() => { setSendMethod(val); setModalError(""); }}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${sendMethod === val ? "bg-primary text-on-primary" : "text-on-surface-variant"}`}>
+                      <span className="material-symbols-outlined text-[16px]">{icon}</span>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {/* Payment apps row */}
+                <div className="flex gap-2 p-1 bg-surface-container-low rounded-xl border border-outline-variant/50">
+                  {[["cashapp","CashApp","$"],["venmo","Venmo","@"],["paypal","PayPal","mail"]].map(([val, label, icon]) => (
+                    <button key={val} type="button" onClick={() => { setSendMethod(val); setModalError(""); }}
+                      className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-[10px] font-bold transition-all ${sendMethod === val ? "bg-primary text-on-primary" : "text-on-surface-variant"}`}>
+                      <span className="text-[12px] font-bold">{icon}</span>
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {sendMethod === "email" ? (
@@ -643,7 +690,7 @@ export default function DashboardPage() {
                   <input className={inputCls} type="email" placeholder="friend@email.com"
                     value={sendForm.recipientEmail} onChange={e => setSendForm(p => ({ ...p, recipientEmail: e.target.value }))} />
                 </Field>
-              ) : (
+              ) : sendMethod === "account" ? (
                 <Field label="Recipient Account Number">
                   <input className={inputCls} placeholder="e.g. QC847291038472"
                     value={sendForm.recipientAccount}
@@ -668,7 +715,22 @@ export default function DashboardPage() {
                     </p>
                   )}
                 </Field>
-              )}
+              ) : ["cashapp","venmo","paypal"].includes(sendMethod) ? (
+                <Field label={sendMethod === "cashapp" ? "CashApp $Cashtag" : sendMethod === "venmo" ? "Venmo @Username" : "PayPal Email"}>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant font-bold text-sm">
+                      {sendMethod === "cashapp" ? "$" : sendMethod === "venmo" ? "@" : ""}
+                    </span>
+                    <input className={`${inputCls} ${["cashapp","venmo"].includes(sendMethod) ? "pl-7" : ""}`}
+                      placeholder={sendMethod === "cashapp" ? "cashtag" : sendMethod === "venmo" ? "username" : "email@example.com"}
+                      value={sendForm.paymentTag}
+                      onChange={e => setSendForm(p => ({ ...p, paymentTag: e.target.value }))} />
+                  </div>
+                  <p className="text-xs text-on-surface-variant mt-1">
+                    {sendMethod === "cashapp" ? "Enter recipient's $Cashtag" : sendMethod === "venmo" ? "Enter recipient's @username" : "Enter recipient's PayPal email"}
+                  </p>
+                </Field>
+              ) : null}
 
               <Field label={`Amount (${sym})`}>
                 <input className={inputCls} type="number" placeholder="0.00"
