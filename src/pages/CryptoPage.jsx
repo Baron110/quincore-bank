@@ -15,7 +15,6 @@ const fmt = (n, sym = "$") =>
   `${sym}${Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default function CryptoPage() {
-  const navigate  = useNavigate();
   const uid       = auth.currentUser?.uid;
   const { userData, loading } = useUserData(uid);
 
