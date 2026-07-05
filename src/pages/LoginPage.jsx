@@ -138,9 +138,9 @@ export default function LoginPage() {
                 onChange={e => { setOtpInput(e.target.value.replace(/\D/g,"")); setError(""); }} />
             </div>
 
-            <button onClick={handleVerifyOTP} disabled={verifying || otpInput.length !== 6}
+            <button onClick={handleVerifyOTP} disabled={ false || otpInput.length !== 6}
               className="w-full bg-primary text-on-primary py-3 rounded-lg text-xs font-bold active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2">
-              {verifying
+              { false
                 ? <><span className="material-symbols-outlined text-[16px] animate-spin">sync</span> Verifying…</>
                 : "Verify & Sign In"}
             </button>
