@@ -27,8 +27,6 @@ export default function LoginPage() {
   const [otpSent,     setOtpSent]     = useState("");
   const [otpInput,    setOtpInput]    = useState("");
   const [otpEmail,    setOtpEmail]    = useState("");
-  const [otpPassword, setOtpPassword] = useState(""); // stored for re-login after OTP
-  const [verifying,   setVerifying]   = useState(false);
   const [otpExpiry,   setOtpExpiry]   = useState(null);
 
   const handleSubmit = async (e) => {
