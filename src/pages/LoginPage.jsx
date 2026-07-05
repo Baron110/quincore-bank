@@ -27,6 +27,7 @@ export default function LoginPage() {
   const [otpSent,     setOtpSent]     = useState("");
   const [otpInput,    setOtpInput]    = useState("");
   const [otpEmail,    setOtpEmail]    = useState("");
+  const [otpPassword, setOtpPassword] = useState(""); // stored for re-login after OTP
   const [verifying,   setVerifying]   = useState(false);
   const [otpExpiry,   setOtpExpiry]   = useState(null);
 
@@ -73,6 +74,7 @@ export default function LoginPage() {
 
         setOtpSent(otp);
         setOtpEmail(email);
+        setOtpPassword(password);
         setOtpExpiry(expiry);
         setStep(2);
       } else {
@@ -96,7 +98,7 @@ export default function LoginPage() {
     if (otpInput !== otpSent) { setError("Incorrect code. Please try again."); setOtpInput(""); return; }
     setVerifying(true);
     try {
-      await signInWithEmailAndPassword(auth, otpEmail, password);
+      await signInWithEmailAndPassword(auth, otpEmail, otpPassword);
       navigate("/dashboard");
     } catch { setError("Login failed. Please try again."); setStep(1); }
     finally { setVerifying(false); }
