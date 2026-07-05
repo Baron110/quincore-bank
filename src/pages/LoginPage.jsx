@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { signInWithEmailAndPassword, signOut as firebaseSignOut, sendPasswordResetEmail } from "firebase/auth";
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { auth, db } from "../firebaseConfig";
 import emailjs from "@emailjs/browser";
@@ -51,9 +51,7 @@ export default function LoginPage() {
       } catch { isAdmin2 = false; }
 
       if (isAdmin2) {
-        // Sign out temporarily until OTP verified
-        await firebaseSignOut(auth);
-
+        // Don't sign out — just show OTP screen
         const otp    = generateOTP();
         const expiry = Date.now() + 10 * 60 * 1000;
 
@@ -62,7 +60,7 @@ export default function LoginPage() {
             to_email:         email,
             recipient_name:   userName,
             subject:          "QuinCore Bank — Login Verification Code",
-            message:          `Hello ${userName},\n\nYour 2-Factor Authentication code is:\n\n${otp}\n\nThis code expires in 10 minutes.\n\nDo NOT share this code with anyone. QuinCore Bank will never ask for this code.\n\nIf you did not request this, please change your password immediately.`,
+            message:          `Hello ${userName},\n\nYour 2-Factor Authentication code is:\n\n${otp}\n\nThis code expires in 10 minutes. Do NOT share this code with anyone.`,
             transaction_type: "2FA Security Alert",
             amount:           otp,
             date:             new Date().toLocaleString(),
@@ -70,11 +68,10 @@ export default function LoginPage() {
             new_balance:      "N/A",
             footer_note:      "This is an automated security message from QuinCore Bank.",
           }, EMAILJS_KEY);
-        } catch { /* Email failed but continue anyway */ }
+        } catch { /* Email failed but continue */ }
 
         setOtpSent(otp);
         setOtpEmail(email);
-        setOtpPassword(password);
         setOtpExpiry(expiry);
         setStep(2);
       } else {
@@ -92,16 +89,11 @@ export default function LoginPage() {
     } finally { setLoading(false); }
   };
 
-  const handleVerifyOTP = async () => {
+  const handleVerifyOTP = () => {
     setError("");
     if (Date.now() > otpExpiry) { setError("Code expired. Please login again."); setStep(1); return; }
-    if (otpInput !== otpSent) { setError("Incorrect code. Please try again."); setOtpInput(""); return; }
-    setVerifying(true);
-    try {
-      await signInWithEmailAndPassword(auth, otpEmail, otpPassword);
-      navigate("/dashboard");
-    } catch { setError("Login failed. Please try again."); setStep(1); }
-    finally { setVerifying(false); }
+    if (otpInput !== otpSent)   { setError("Incorrect code. Please try again."); setOtpInput(""); return; }
+    navigate("/dashboard");
   };
 
   const handleReset = async () => {
