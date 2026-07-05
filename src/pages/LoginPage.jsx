@@ -34,7 +34,7 @@ export default function LoginPage() {
     e.preventDefault();
     setError(""); setResetMsg(""); setLoading(true);
     try {
-      const credential = await signInWithEmailAndPassword(auth, email, password);
+      
 
       // Check if user is QCB2 (adminGroup = admin2)
       const q    = query(collection(db, "users"), where("email", "==", email.toLowerCase().trim()));
