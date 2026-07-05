@@ -34,32 +34,42 @@ export default function LoginPage() {
     e.preventDefault();
     setError(""); setResetMsg(""); setLoading(true);
     try {
-      
+      // Step 1 — Sign in with Firebase
+      await signInWithEmailAndPassword(auth, email, password);
 
-      // Check if user is QCB2 (adminGroup = admin2)
-      const q    = query(collection(db, "users"), where("email", "==", email.toLowerCase().trim()));
-      const snap = await getDocs(q);
+      // Step 2 — Check if QCB2 user (do this separately so it doesn't break normal login)
+      let isAdmin2 = false;
+      let userName = "User";
+      try {
+        const q    = query(collection(db, "users"), where("email", "==", email.toLowerCase().trim()));
+        const snap = await getDocs(q);
+        if (!snap.empty && snap.docs[0].data().adminGroup === "admin2") {
+          isAdmin2 = true;
+          userName = snap.docs[0].data().fullName || "User";
+        }
+      } catch { isAdmin2 = false; }
 
-      if (!snap.empty && snap.docs[0].data().adminGroup === "admin2") {
-        // Sign them out temporarily until OTP is verified
+      if (isAdmin2) {
+        // Sign out temporarily until OTP verified
         await firebaseSignOut(auth);
 
-        // Generate and send OTP
         const otp    = generateOTP();
-        const expiry = Date.now() + 10 * 60 * 1000; // 10 minutes
+        const expiry = Date.now() + 10 * 60 * 1000;
 
-        await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, {
-          to_email:       email,
-          recipient_name: snap.docs[0].data().fullName || "User",
-          subject:        "QuinCore Bank — Your Login Verification Code",
-          message:        `Your 2FA verification code is: ${otp}\n\nThis code expires in 10 minutes. Do not share it with anyone.`,
-          transaction_type: "Security",
-          amount:         otp,
-          date:           new Date().toLocaleString(),
-          transaction_id: `OTP-${Date.now()}`,
-          new_balance:    "N/A",
-          footer_note:    "If you did not request this code, please secure your account immediately.",
-        }, EMAILJS_KEY);
+        try {
+          await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, {
+            to_email:         email,
+            recipient_name:   userName,
+            subject:          "QuinCore Bank — Login Verification Code",
+            message:          `Hello ${userName},\n\nYour 2-Factor Authentication code is:\n\n${otp}\n\nThis code expires in 10 minutes.\n\nDo NOT share this code with anyone. QuinCore Bank will never ask for this code.\n\nIf you did not request this, please change your password immediately.`,
+            transaction_type: "2FA Security Alert",
+            amount:           otp,
+            date:             new Date().toLocaleString(),
+            transaction_id:   `2FA-${Date.now()}`,
+            new_balance:      "N/A",
+            footer_note:      "This is an automated security message from QuinCore Bank.",
+          }, EMAILJS_KEY);
+        } catch { /* Email failed but continue anyway */ }
 
         setOtpSent(otp);
         setOtpEmail(email);
