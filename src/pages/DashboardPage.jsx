@@ -180,6 +180,7 @@ export default function DashboardPage() {
       const platformName  = platformNames[sendMethod];
       const ts  = nowDateTime();
       const id  = generateTxnId();
+      const now = new Date();
       await addTxn(uid, {
         id, type: "sent", amount,
         description: `${platformName} Transfer — ${sendForm.paymentTag}`,
@@ -190,14 +191,16 @@ export default function DashboardPage() {
         icon: "send", color: TXN_META.sent.color,
       }, -amount);
       navigate("/receipt", { state: {
-        amount: amount.toFixed(2),
-        newBalance: (userData.balance - amount).toFixed(2),
-        symbol: sym,
+        amount:        amount.toFixed(2),
+        newBalance:    (userData.balance - amount).toFixed(2),
+        symbol:        sym,
         recipientName: `${platformName}: ${sendForm.paymentTag}`,
-        type: "sent",
-        txnId: id,
+        type:          "sent",
+        transactionId: id,
         paymentMethod: platformName,
-        paymentTag: sendForm.paymentTag,
+        paymentTag:    sendForm.paymentTag,
+        date:          now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+        time:          now.toLocaleTimeString(),
       }});
       closeModal();
       return;
@@ -238,6 +241,7 @@ export default function DashboardPage() {
       // ── Currency Conversion ──────────────────────────────────────────────
       let convertedAmount = amount;
       const recipientCurrency = recipientData.currency || "USD";
+      const recipientSym      = recipientData.currencySymbol || "$";
 
       if (senderCurrency !== recipientCurrency) {
         try {
