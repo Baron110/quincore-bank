@@ -27,7 +27,6 @@ export default function LoginPage() {
   const [otpSent,    setOtpSent]    = useState("");
   const [otpInput,   setOtpInput]   = useState("");
   const [otpExpiry,  setOtpExpiry]  = useState(null);
-  const [otpName,    setOtpName]    = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
