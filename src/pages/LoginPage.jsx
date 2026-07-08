@@ -15,28 +15,27 @@ function generateOTP() {
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [email,       setEmail]       = useState("");
-  const [password,    setPassword]    = useState("");
-  const [showPassword,setShowPassword]= useState(false);
-  const [error,       setError]       = useState("");
-  const [resetMsg,    setResetMsg]    = useState("");
-  const [loading,     setLoading]     = useState(false);
+  const [email,        setEmail]        = useState("");
+  const [password,     setPassword]     = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error,        setError]        = useState("");
+  const [resetMsg,     setResetMsg]     = useState("");
+  const [loading,      setLoading]      = useState(false);
 
   // 2FA states
-  const [step,        setStep]        = useState(1); // 1=login, 2=otp
-  const [otpSent,     setOtpSent]     = useState("");
-  const [otpInput,    setOtpInput]    = useState("");
-  const [otpEmail,    setOtpEmail]    = useState("");
-  const [otpExpiry,   setOtpExpiry]   = useState(null);
+  const [step,       setStep]       = useState(1);
+  const [otpSent,    setOtpSent]    = useState("");
+  const [otpInput,   setOtpInput]   = useState("");
+  const [otpExpiry,  setOtpExpiry]  = useState(null);
+  const [otpName,    setOtpName]    = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(""); setResetMsg(""); setLoading(true);
     try {
-      // Step 1 — Sign in with Firebase
       await signInWithEmailAndPassword(auth, email, password);
 
-      // Step 2 — Check if QCB2 user (do this separately so it doesn't break normal login)
+      // Check if QCB2 user
       let isAdmin2 = false;
       let userName = "User";
       try {
@@ -49,31 +48,29 @@ export default function LoginPage() {
       } catch { isAdmin2 = false; }
 
       if (isAdmin2) {
-        // Don't sign out — just show OTP screen
         const otp    = generateOTP();
-        const expiry = Date.now() + 10 * 60 * 1000;
+        const expiry = Date.now() + 20 * 60 * 1000; // 20 minutes
 
         try {
           await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, {
             to_email:         email,
             recipient_name:   userName,
             subject:          "QuinCore Bank — Login Verification Code",
-            message:          `Hello ${userName},\n\nYour 2-Factor Authentication code is:\n\n${otp}\n\nThis code expires in 10 minutes. Do NOT share this code with anyone.`,
+            message:          `Hello ${userName},\n\nYour login verification code is:\n\n${otp}\n\nThis code expires in 20 minutes. Do NOT share this code with anyone.\n\nIf you did not attempt to login, secure your account immediately.`,
             transaction_type: "2FA Security Alert",
             amount:           otp,
             date:             new Date().toLocaleString(),
             transaction_id:   `2FA-${Date.now()}`,
             new_balance:      "N/A",
-            footer_note:      "This is an automated security message from QuinCore Bank.",
+            footer_note:      "QuinCore Bank Security Team",
           }, EMAILJS_KEY);
-        } catch { /* Email failed but continue */ }
+        } catch { /* Email failed — continue anyway */ }
 
         setOtpSent(otp);
-        setOtpEmail(email);
         setOtpExpiry(expiry);
+        setOtpName(userName);
         setStep(2);
       } else {
-        // Normal user — go straight to dashboard
         navigate("/dashboard");
       }
     } catch (err) {
@@ -90,134 +87,113 @@ export default function LoginPage() {
   const handleVerifyOTP = () => {
     setError("");
     if (Date.now() > otpExpiry) { setError("Code expired. Please login again."); setStep(1); return; }
-    if (otpInput !== otpSent)   { setError("Incorrect code. Please try again."); setOtpInput(""); return; }
+    if (otpInput.trim() !== otpSent) { setError("Incorrect code. Please try again."); setOtpInput(""); return; }
     navigate("/dashboard");
   };
 
-  const handleReset = async () => {
-    if (!email) { setError("Enter your email above first."); return; }
+  const handleForgotPassword = async () => {
+    if (!email) { setError("Enter your email address first."); return; }
+    setLoading(true);
     try {
       await sendPasswordResetEmail(auth, email);
-      setResetMsg("Reset link sent! Check your inbox.");
-      setError("");
-    } catch { setError("Could not send reset email."); }
+      setResetMsg("Password reset email sent! Check your inbox.");
+    } catch { setError("Could not send reset email. Check the email address."); }
+    finally { setLoading(false); }
   };
 
-  // ── OTP Step ─────────────────────────────────────────────────────────────
+  // ── OTP Screen ──────────────────────────────────────────────────────────────
   if (step === 2) {
-    const timeLeft = Math.max(0, Math.floor((otpExpiry - Date.now()) / 1000));
-    const mins = Math.floor(timeLeft / 60);
-    const secs = timeLeft % 60;
-
     return (
-      <div className="min-h-screen flex items-center justify-center p-gutter bg-background">
-        <div className="w-full max-w-[440px] bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-xl">
-          <div className="text-center mb-lg">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+        <div className="w-full max-w-sm bg-surface-container-lowest rounded-xl border border-outline-variant p-8 shadow-xl">
+          <div className="text-center mb-6">
             <div className="w-16 h-16 bg-primary-fixed rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="material-symbols-outlined text-primary text-[32px]">mark_email_read</span>
+              <span className="material-symbols-outlined text-primary text-[32px]">shield</span>
             </div>
-            <h1 className="font-hanken text-headline-md text-primary">Verify Your Identity</h1>
+            <h2 className="font-hanken text-2xl font-bold text-primary">Verify Your Identity</h2>
             <p className="text-xs text-on-surface-variant mt-2">
-              A 6-digit code was sent to <strong>{otpEmail}</strong>
+              A 6-digit code was sent to <strong>{email}</strong>
             </p>
-            <p className="text-xs text-on-surface-variant mt-1">
-              Expires in {mins}:{String(secs).padStart(2,"0")}
-            </p>
+            <p className="text-xs text-on-surface-variant">Code expires in 20 minutes</p>
           </div>
 
-          {error && <div className="mb-4 p-3 bg-error-container text-on-error-container rounded-lg text-xs font-semibold">{error}</div>}
+          {error && <p className="text-error text-xs font-bold text-center mb-4">{error}</p>}
 
           <div className="space-y-4">
             <div>
-              <label className="text-xs font-bold text-primary block mb-1 uppercase tracking-wider">Enter 6-Digit Code</label>
+              <label className="text-xs font-bold text-primary block mb-1 uppercase tracking-wider">Enter Verification Code</label>
               <input
-                className="w-full px-4 py-4 rounded-lg border border-outline-variant text-center text-2xl font-bold tracking-widest focus:outline-none focus:border-primary bg-white"
+                className="w-full px-3 py-3 rounded-lg border border-outline-variant text-center text-2xl font-bold tracking-widest focus:outline-none focus:border-primary bg-white"
                 type="text" maxLength={6} inputMode="numeric"
                 placeholder="000000"
                 value={otpInput}
-                onChange={e => { setOtpInput(e.target.value.replace(/\D/g,"")); setError(""); }} />
+                onChange={e => { setOtpInput(e.target.value.replace(/\D/g,"")); setError(""); }}
+                onKeyDown={e => e.key === "Enter" && handleVerifyOTP()} />
             </div>
-
-            <button onClick={handleVerifyOTP} disabled={ false || otpInput.length !== 6}
-              className="w-full bg-primary text-on-primary py-3 rounded-lg text-xs font-bold active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2">
-              { false
-                ? <><span className="material-symbols-outlined text-[16px] animate-spin">sync</span> Verifying…</>
-                : "Verify & Sign In"}
+            <button onClick={handleVerifyOTP}
+              className="w-full bg-primary text-on-primary py-3 rounded-lg text-xs font-bold active:scale-95">
+              Verify & Login
             </button>
-
             <button onClick={() => { setStep(1); setOtpInput(""); setError(""); }}
               className="w-full border border-outline-variant text-on-surface-variant py-3 rounded-lg text-xs font-bold active:scale-95">
               Back to Login
             </button>
           </div>
-
-          <p className="text-center text-xs text-on-surface-variant mt-4 opacity-60">
-            🔒 2-Factor Authentication — QuinCore Bank
-          </p>
         </div>
       </div>
     );
   }
 
-  // ── Login Step ────────────────────────────────────────────────────────────
+  // ── Login Screen ─────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen flex items-center justify-center p-gutter bg-background">
-      <div className="w-full max-w-[440px] bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-xl">
-        <div className="text-center mb-lg">
-          <span className="material-symbols-outlined text-primary" style={{ fontSize: 48 }}>account_balance</span>
-          <h1 className="font-hanken text-headline-md text-primary mt-2">QuinCore Bank</h1>
-          <p className="font-label-md text-on-surface-variant mt-xs">Premium Digital Banking</p>
+    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+      <div className="w-full max-w-sm bg-surface-container-lowest rounded-xl border border-outline-variant p-8 shadow-xl">
+        <div className="flex items-center gap-2 mb-6">
+          <span className="material-symbols-outlined text-primary text-[28px]">account_balance</span>
+          <h1 className="font-hanken text-xl font-bold text-primary">QuinCore Bank</h1>
         </div>
+        <h2 className="font-hanken text-2xl font-bold text-primary mb-1">Welcome back</h2>
+        <p className="text-xs text-on-surface-variant mb-6">Sign in to your account</p>
 
-        <h2 className="font-hanken text-headline-lg text-primary mb-md">Welcome back</h2>
+        {error    && <p className="text-error text-xs font-bold mb-4">{error}</p>}
+        {resetMsg && <p className="text-green-600 text-xs font-bold mb-4">{resetMsg}</p>}
 
-        {error    && <div className="mb-md p-sm bg-error-container text-on-error-container rounded-lg font-label-md">{error}</div>}
-        {resetMsg && <div className="mb-md p-sm bg-green-100 text-green-700 rounded-lg font-label-md">{resetMsg}</div>}
-
-        <form className="space-y-md" onSubmit={handleSubmit} noValidate>
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="font-label-md text-label-md text-primary block mb-xs">Email</label>
+            <label className="text-xs font-bold text-primary block mb-1 uppercase tracking-wider">Email</label>
             <input
-              className="w-full px-md py-sm rounded-lg border border-outline-variant font-body-sm focus:outline-none focus:border-primary transition-colors"
-              type="email" placeholder="name@company.com"
-              value={email} onChange={(e) => setEmail(e.target.value)} required />
+              className="w-full px-3 py-3 rounded-lg border border-outline-variant focus:outline-none focus:border-primary bg-white text-sm"
+              type="email" placeholder="you@email.com" value={email}
+              onChange={e => { setEmail(e.target.value); setError(""); }} required />
           </div>
           <div>
-            <label className="font-label-md text-label-md text-primary block mb-xs">Password</label>
+            <label className="text-xs font-bold text-primary block mb-1 uppercase tracking-wider">Password</label>
             <div className="relative">
               <input
-                className="w-full px-md py-sm rounded-lg border border-outline-variant font-body-sm focus:outline-none focus:border-primary transition-colors pr-12"
-                type={showPassword ? "text" : "password"} placeholder="••••••••"
-                value={password} onChange={(e) => setPassword(e.target.value)} required />
+                className="w-full px-3 py-3 pr-10 rounded-lg border border-outline-variant focus:outline-none focus:border-primary bg-white text-sm"
+                type={showPassword ? "text" : "password"} placeholder="••••••••" value={password}
+                onChange={e => { setPassword(e.target.value); setError(""); }} required />
               <button type="button" onClick={() => setShowPassword(v => !v)}
-                className="absolute right-sm top-1/2 -translate-y-1/2 text-on-surface-variant">
-                <span className="material-symbols-outlined text-[20px]">{showPassword ? "visibility_off" : "visibility"}</span>
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant">
+                <span className="material-symbols-outlined text-[18px]">{showPassword ? "visibility_off" : "visibility"}</span>
               </button>
             </div>
-          </div>
-
-          <div className="text-right">
-            <button type="button" onClick={handleReset}
-              className="font-label-sm text-label-sm text-primary hover:underline">
+            <button type="button" onClick={handleForgotPassword}
+              className="text-xs text-primary font-bold mt-1 hover:underline">
               Forgot password?
             </button>
           </div>
-
           <button type="submit" disabled={loading}
-            className="w-full bg-primary text-on-primary py-sm rounded-lg font-label-md active:scale-95 transition-transform disabled:opacity-60 flex items-center justify-center gap-sm">
+            className="w-full bg-primary text-on-primary py-3 rounded-lg text-xs font-bold active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2">
             {loading
-              ? <><span className="material-symbols-outlined text-[18px] animate-spin">sync</span> Signing in…</>
+              ? <><span className="material-symbols-outlined text-[16px] animate-spin">sync</span> Signing in…</>
               : "Sign In"}
           </button>
         </form>
 
-        <div className="mt-lg text-center font-label-sm text-on-surface-variant">
+        <p className="text-center text-xs text-on-surface-variant mt-4">
           Don't have an account?{" "}
-          <Link to="/signup" className="text-primary font-bold hover:underline">Create account</Link>
-        </div>
-
-        <p className="text-center font-label-sm text-on-surface-variant mt-md opacity-60">
-          🔒 256-bit SSL encryption
+          <Link to="/signup" className="text-primary font-bold hover:underline">Sign Up</Link>
         </p>
       </div>
     </div>

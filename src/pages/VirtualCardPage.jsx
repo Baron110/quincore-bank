@@ -110,7 +110,7 @@ export default function VirtualCardPage() {
                 <div className="flex justify-between items-center">
                   <p className="font-label-md text-primary">{fmt(card.limit || 5000, sym)} / mo</p>
                   <span className="font-label-sm text-secondary-container bg-primary-container px-sm py-xs rounded-full">
-                    {Math.round(((card.limit || 5000 - userData.balance) / (card.limit || 5000)) * 100)}% available
+                    {Math.round(((userData.balance || 0) / (card.limit || 5000)) * 100)}% used
                   </span>
                 </div>
                 <div className="w-full bg-surface-container-high h-1.5 rounded-full mt-sm">
