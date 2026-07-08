@@ -67,7 +67,6 @@ export default function LoginPage() {
 
         setOtpSent(otp);
         setOtpExpiry(expiry);
-        setOtpName(userName);
         setStep(2);
       } else {
         navigate("/dashboard");
