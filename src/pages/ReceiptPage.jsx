@@ -123,9 +123,16 @@ QuinCore Bank — Premium Digital Banking
             {/* Summary row */}
             <div className="bg-surface-container-low rounded-xl p-md space-y-2">
               {[
-                ["Amount",      `${receipt.symbol}${parseFloat(receipt.amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
-                ["Type",        receipt.type],
-                ["New Balance", `${receipt.symbol}${parseFloat(receipt.newBalance).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+                ["Amount",         `${receipt.symbol}${parseFloat(receipt.amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+                ["Type",           receipt.type],
+                ...(receipt.paymentMethod ? [["Payment Via", receipt.paymentMethod]] : []),
+                ...(receipt.paymentTag    ? [["Tag / Handle", receipt.paymentTag]]   : []),
+                ...(receipt.bankName      ? [["Bank", receipt.bankName]]             : []),
+                ...(receipt.bankSwift     ? [["SWIFT / BIC", receipt.bankSwift]]     : []),
+                ...(receipt.bankAccount   ? [["Account No.", receipt.bankAccount]]   : []),
+                ["Date",           receipt.date || new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })],
+                ["Time",           receipt.time || new Date().toLocaleTimeString()],
+                ["New Balance",    `${receipt.symbol}${parseFloat(receipt.newBalance).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
               ].map(([label, val]) => (
                 <div key={label} className="flex justify-between items-center">
                   <span className="text-xs text-on-surface-variant font-semibold uppercase tracking-wider">{label}</span>

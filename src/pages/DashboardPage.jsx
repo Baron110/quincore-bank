@@ -8,6 +8,7 @@ import Sidebar from "../components/Sidebar";
 import MobileNav from "../components/MobileNav";
 import Header from "../components/Header";
 import { fmt, generateTxnId, nowDateTime, TXN_META } from "../utils";
+import { getBanksForCountry } from "../utils/banks";
 
 // ─── EmailJS ──────────────────────────────────────────────────────────────────
 const EMAILJS_SERVICE_ID  = "service_sn7i0ob";
@@ -89,7 +90,7 @@ export default function DashboardPage() {
 
   // Form states
   const [sendMethod,      setSendMethod]      = useState("email"); // "email" | "account" | "cashapp" | "venmo" | "paypal" | "btc"
-  const [sendForm,        setSendForm]        = useState({ recipientEmail: "", recipientAccount: "", amount: "", purpose: "", paymentTag: "", btcAddress: "" });
+  const [sendForm,        setSendForm]        = useState({ recipientEmail: "", recipientAccount: "", amount: "", purpose: "", paymentTag: "", btcAddress: "", bankName: "", bankSwift: "", bankAccount: "", bankHolder: "" });
   const [depositAmt,      setDepositAmt]      = useState("");
   const [requestForm,     setRequestForm]     = useState({ recipientEmail: "", amount: "", note: "" });
   const [billForm,        setBillForm]        = useState({ billType: "", amount: "", ref: "" });
@@ -102,7 +103,7 @@ export default function DashboardPage() {
   const openModal = (name) => {
     setModal(name); setModalStep(1); setModalError("");
     setPinInput(""); setPendingTxn(null); setSendMethod("email");
-    setSendForm({ recipientEmail: "", recipientAccount: "", amount: "", purpose: "", paymentTag: "", btcAddress: "" });
+    setSendForm({ recipientEmail: "", recipientAccount: "", amount: "", purpose: "", paymentTag: "", btcAddress: "", bankName: "", bankSwift: "", bankAccount: "", bankHolder: "" });
     setDepositAmt(""); setLookupName(""); setLookupLoading(false);
     setRequestForm({ recipientEmail: "", amount: "", note: "" });
     setBillForm({ billType: "", amount: "", ref: "" });
@@ -163,6 +164,11 @@ export default function DashboardPage() {
       setModalError(`Enter ${sendMethod === "cashapp" ? "$cashtag" : sendMethod === "venmo" ? "@username" : "PayPal email"}.`);
       return false;
     }
+    if (sendMethod === "bank") {
+      if (!sendForm.bankName)             { setModalError("Select a bank.");                  return false; }
+      if (!sendForm.bankHolder.trim())    { setModalError("Enter account holder name.");      return false; }
+      if (!sendForm.bankAccount.trim())   { setModalError("Enter recipient account number."); return false; }
+    }
     if (!amount || amount <= 0) { setModalError("Enter a valid amount."); return false; }
     if (sendMethod === "email" && sendForm.recipientEmail.toLowerCase() === userData.email) { setModalError("Cannot send to yourself."); return false; }
     if (amount > userData.balance) { setModalError("Insufficient balance."); return false; }
@@ -173,6 +179,42 @@ export default function DashboardPage() {
     const amount = parseFloat(sendForm.amount);
     const sym    = userData.currencySymbol || "$";
     const senderCurrency = userData.currency || "USD";
+
+    // Handle external bank wire transfer
+    if (sendMethod === "bank") {
+      const ts  = nowDateTime();
+      const id  = generateTxnId();
+      const now = new Date();
+      await addTxn(uid, {
+        id, type: "sent", amount,
+        description: `Bank Transfer — ${sendForm.bankName}`,
+        paymentMethod: "Bank Transfer",
+        bankName:    sendForm.bankName,
+        bankSwift:   sendForm.bankSwift,
+        bankAccount: sendForm.bankAccount,
+        bankHolder:  sendForm.bankHolder,
+        purpose: sendForm.purpose || "Wire Transfer",
+        ...ts, status: "Pending", category: "Transfer",
+        icon: "account_balance", color: TXN_META.sent.color,
+      }, -amount);
+      navigate("/receipt", { state: {
+        amount:        amount.toFixed(2),
+        newBalance:    (userData.balance - amount).toFixed(2),
+        symbol:        sym,
+        recipientName: sendForm.bankHolder,
+        type:          "sent",
+        transactionId: id,
+        paymentMethod: "Bank Transfer",
+        bankName:      sendForm.bankName,
+        bankSwift:     sendForm.bankSwift,
+        bankAccount:   sendForm.bankAccount,
+        status:        "Pending",
+        date:          now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+        time:          now.toLocaleTimeString(),
+      }});
+      closeModal();
+      return;
+    }
 
     // Handle CashApp, Venmo, PayPal
     if (["cashapp","venmo","paypal"].includes(sendMethod)) {
@@ -241,7 +283,7 @@ export default function DashboardPage() {
       // ── Currency Conversion ──────────────────────────────────────────────
       let convertedAmount = amount;
       const recipientCurrency = recipientData.currency || "USD";
-      
+      const recipientSym      = recipientData.currencySymbol || "$";
 
       if (senderCurrency !== recipientCurrency) {
         try {
@@ -668,7 +710,7 @@ export default function DashboardPage() {
               {/* Send method toggle */}
               <div className="space-y-2">
                 <div className="flex gap-2 p-1 bg-surface-container-low rounded-xl border border-outline-variant/50">
-                  {[["email","Email","email"],["account","Account","tag"]].map(([val, label, icon]) => (
+                  {[["email","Email","email"],["account","Account","tag"],["bank","Bank","account_balance"]].map(([val, label, icon]) => (
                     <button key={val} type="button" onClick={() => { setSendMethod(val); setModalError(""); }}
                       className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${sendMethod === val ? "bg-primary text-on-primary" : "text-on-surface-variant"}`}>
                       <span className="material-symbols-outlined text-[16px]">{icon}</span>
@@ -718,6 +760,57 @@ export default function DashboardPage() {
                     </p>
                   )}
                 </Field>
+              ) : sendMethod === "bank" ? (
+                <>
+                  <Field label="Recipient Bank">
+                    <select className={inputCls}
+                      value={sendForm.bankName}
+                      onChange={e => {
+                        const chosen = getBanksForCountry(userData.country).find(b => b.name === e.target.value);
+                        setSendForm(p => ({ ...p, bankName: e.target.value, bankSwift: chosen?.swift || "" }));
+                        setModalError("");
+                      }}>
+                      <option value="">Select a bank</option>
+                      {Object.entries(
+                        getBanksForCountry(userData.country).reduce((acc, b) => {
+                          (acc[b.group] = acc[b.group] || []).push(b);
+                          return acc;
+                        }, {})
+                      ).map(([group, banks]) => (
+                        <optgroup key={group} label={group}>
+                          {banks.map(b => <option key={b.name} value={b.name}>{b.name}</option>)}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <Field label="Account Holder Name">
+                    <input className={inputCls} placeholder="Full name on the account"
+                      value={sendForm.bankHolder}
+                      onChange={e => { setSendForm(p => ({ ...p, bankHolder: e.target.value })); setModalError(""); }} />
+                  </Field>
+
+                  <Field label="Recipient Account Number / IBAN">
+                    <input className={inputCls} placeholder="e.g. 0123456789"
+                      value={sendForm.bankAccount}
+                      onChange={e => { setSendForm(p => ({ ...p, bankAccount: e.target.value })); setModalError(""); }} />
+                  </Field>
+
+                  <Field label="SWIFT / BIC Code (optional)">
+                    <input className={`${inputCls} font-mono uppercase`} placeholder="e.g. CHASUS33"
+                      value={sendForm.bankSwift}
+                      onChange={e => setSendForm(p => ({ ...p, bankSwift: e.target.value.toUpperCase() }))} />
+                    <p className="text-xs text-on-surface-variant mt-1">
+                      {sendForm.bankName ? "Auto-filled from selected bank — edit if needed." : "Required for international wires."}
+                    </p>
+                  </Field>
+
+                  <div className="bg-secondary-container p-3 rounded-lg">
+                    <p className="text-[11px] text-on-secondary-container font-semibold">
+                      🏦 Bank wires are reviewed before settlement and typically clear in 1–3 business days.
+                    </p>
+                  </div>
+                </>
               ) : ["cashapp","venmo","paypal"].includes(sendMethod) ? (
                 <Field label={sendMethod === "cashapp" ? "CashApp $Cashtag" : sendMethod === "venmo" ? "Venmo @Username" : "PayPal Email"}>
                   <div className="relative">

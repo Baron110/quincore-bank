@@ -45,6 +45,7 @@ export default function App() {
         <Route path="/dashboard"     element={<Protected><DashboardPage /></Protected>} />
         <Route path="/transactions"  element={<Protected><TransactionsPage /></Protected>} />
         <Route path="/card"          element={<Protected><VirtualCardPage /></Protected>} />
+        <Route path="/virtual-card"  element={<Protected><VirtualCardPage /></Protected>} />
         <Route path="/analytics"     element={<Protected><AnalyticsPage /></Protected>} />
         <Route path="/profile"       element={<Protected><ProfilePage /></Protected>} />
         <Route path="/receipt"       element={<Protected><ReceiptPage /></Protected>} />
