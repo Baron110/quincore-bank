@@ -5,6 +5,7 @@ import { db, auth } from "../firebaseConfig";
 import { useUserData } from "../hooks/useUserData";
 import { useNavigate } from "react-router-dom";
 import { LANGUAGES } from "../utils/languages";
+import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import MobileNav from "../components/MobileNav";
 import Header from "../components/Header";
@@ -382,6 +383,13 @@ export default function ProfilePage() {
             className="w-full bg-amber-500 text-white text-xs font-bold px-6 py-4 rounded-xl active:scale-95 transition-transform flex items-center justify-center gap-2">
             <span className="material-symbols-outlined text-[18px]">currency_bitcoin</span>
             Crypto — Send Bitcoin (BTC)
+          </button>
+
+          {/* Statement Export Button */}
+          <button onClick={() => navigate("/statement")}
+            className="w-full bg-surface-container-lowest border border-outline-variant text-primary text-xs font-bold px-6 py-4 rounded-xl active:scale-95 transition-transform flex items-center justify-center gap-2">
+            <span className="material-symbols-outlined text-[18px]">picture_as_pdf</span>
+            Download Monthly Statement
           </button>
 
           {/* Language Switcher */}
