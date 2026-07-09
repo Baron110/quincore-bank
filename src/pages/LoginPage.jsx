@@ -7,7 +7,6 @@ import { auth, db } from "../firebaseConfig";
 import emailjs from "@emailjs/browser";
 
 const EMAILJS_SERVICE       = "service_sn7i0ob";
-const EMAILJS_TEMPLATE      = "template_239am4e"; // transaction receipts
 const EMAILJS_OTP_TEMPLATE  = "template_ba8hkn4"; // 2FA security alert
 const EMAILJS_KEY           = "qyX5zHQs3vzkNzM7m";
 
