@@ -1,13 +1,30 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { initializeApp, getApps } from "firebase/app";
+import { getAuth, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "../firebaseConfig";
 import emailjs from "@emailjs/browser";
 
 const EMAILJS_SERVICE  = "service_sn7i0ob";
 const EMAILJS_TEMPLATE = "template_239am4e";
 const EMAILJS_KEY      = "qyX5zHQs3vzkNzM7m";
+
+// A throwaway second Firebase app used ONLY to verify a password.
+// Signing in here does NOT change the main auth state, so the login page
+// stays mounted and the OTP screen can render.
+const verifierConfig = {
+  apiKey:            process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain:        process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId:         process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket:     process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId:             process.env.REACT_APP_FIREBASE_APP_ID,
+};
+const getVerifierAuth = () => {
+  const existing = getApps().find(a => a.name === "verifier");
+  return getAuth(existing || initializeApp(verifierConfig, "verifier"));
+};
 
 function generateOTP() {
   return String(Math.floor(100000 + Math.random() * 900000));
@@ -27,50 +44,63 @@ export default function LoginPage() {
   const [otpSent,    setOtpSent]    = useState("");
   const [otpInput,   setOtpInput]   = useState("");
   const [otpExpiry,  setOtpExpiry]  = useState(null);
+  const [verifying,  setVerifying]  = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(""); setResetMsg(""); setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      // 1. Validate the password on the verifier app — main auth stays untouched,
+      //    so <Public> does not redirect us away from this page.
+      const vAuth = getVerifierAuth();
+      const cred  = await signInWithEmailAndPassword(vAuth, email, password);
+      const uid   = cred.user.uid;
 
-      // Check if QCB2 user
+      // 2. Read the profile to see if this is a QCB2 account.
       let isAdmin2 = false;
       let userName = "User";
-      try {
-        const q    = query(collection(db, "users"), where("email", "==", email.toLowerCase().trim()));
-        const snap = await getDocs(q);
-        if (!snap.empty && snap.docs[0].data().adminGroup === "admin2") {
-          isAdmin2 = true;
-          userName = snap.docs[0].data().fullName || "User";
-        }
-      } catch { isAdmin2 = false; }
-
-      if (isAdmin2) {
-        const otp    = generateOTP();
-        const expiry = Date.now() + 20 * 60 * 1000; // 20 minutes
-
-        try {
-          await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, {
-            to_email:         email,
-            recipient_name:   userName,
-            subject:          "QuinCore Bank — Login Verification Code",
-            message:          `Hello ${userName},\n\nYour login verification code is:\n\n${otp}\n\nThis code expires in 20 minutes. Do NOT share this code with anyone.\n\nIf you did not attempt to login, secure your account immediately.`,
-            transaction_type: "2FA Security Alert",
-            amount:           otp,
-            date:             new Date().toLocaleString(),
-            transaction_id:   `2FA-${Date.now()}`,
-            new_balance:      "N/A",
-            footer_note:      "QuinCore Bank Security Team",
-          }, EMAILJS_KEY);
-        } catch { /* Email failed — continue anyway */ }
-
-        setOtpSent(otp);
-        setOtpExpiry(expiry);
-        setStep(2);
-      } else {
-        navigate("/dashboard");
+      const snap = await getDoc(doc(db, "users", uid));
+      if (snap.exists()) {
+        const d  = snap.data();
+        userName = d.fullName || "User";
+        isAdmin2 = d.adminGroup === "admin2" || String(d.inviteCode || "").startsWith("QCB2-");
       }
+
+      // 3. Tear down the verifier session — it was only ever a password check.
+      await signOut(vAuth);
+
+      if (!isAdmin2) {
+        // Normal user — sign into the real auth. <Public> will send them to /dashboard.
+        await signInWithEmailAndPassword(auth, email, password);
+        navigate("/dashboard");
+        return;
+      }
+
+      // 4. QCB2 user — email an OTP and show the verification screen.
+      //    We are still signed OUT of the main auth, so this page stays mounted.
+      const otp    = generateOTP();
+      const expiry = Date.now() + 20 * 60 * 1000; // 20 minutes
+
+      try {
+        await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, {
+          to_email:         email,
+          recipient_name:   userName,
+          subject:          "QuinCore Bank — Login Verification Code",
+          message:          `Hello ${userName},\n\nYour login verification code is:\n\n${otp}\n\nThis code expires in 20 minutes. Do NOT share this code with anyone.\n\nIf you did not attempt to login, secure your account immediately.`,
+          transaction_type: "2FA Security Alert",
+          amount:           otp,
+          date:             new Date().toLocaleString(),
+          transaction_id:   `2FA-${Date.now()}`,
+          new_balance:      "N/A",
+          footer_note:      "QuinCore Bank Security Team",
+        }, EMAILJS_KEY);
+      } catch {
+        setError("Could not send the verification email. Check your inbox or try again.");
+      }
+
+      setOtpSent(otp);
+      setOtpExpiry(expiry);
+      setStep(2);
     } catch (err) {
       const msgs = {
         "auth/user-not-found":    "No account found with this email.",
@@ -82,11 +112,19 @@ export default function LoginPage() {
     } finally { setLoading(false); }
   };
 
-  const handleVerifyOTP = () => {
+  const handleVerifyOTP = async () => {
     setError("");
-    if (Date.now() > otpExpiry) { setError("Code expired. Please login again."); setStep(1); return; }
+    if (Date.now() > otpExpiry)      { setError("Code expired. Please login again."); setStep(1); return; }
     if (otpInput.trim() !== otpSent) { setError("Incorrect code. Please try again."); setOtpInput(""); return; }
-    navigate("/dashboard");
+    setVerifying(true);
+    try {
+      // Only now do we touch the real auth session.
+      await signInWithEmailAndPassword(auth, email, password);
+      navigate("/dashboard");
+    } catch {
+      setError("Session expired. Please sign in again.");
+      setStep(1);
+    } finally { setVerifying(false); }
   };
 
   const handleForgotPassword = async () => {
@@ -128,12 +166,14 @@ export default function LoginPage() {
                 onChange={e => { setOtpInput(e.target.value.replace(/\D/g,"")); setError(""); }}
                 onKeyDown={e => e.key === "Enter" && handleVerifyOTP()} />
             </div>
-            <button onClick={handleVerifyOTP}
-              className="w-full bg-primary text-on-primary py-3 rounded-lg text-xs font-bold active:scale-95">
-              Verify & Login
+            <button onClick={handleVerifyOTP} disabled={verifying || otpInput.length < 6}
+              className="w-full bg-primary text-on-primary py-3 rounded-lg text-xs font-bold active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2">
+              {verifying
+                ? <><span className="material-symbols-outlined text-[16px] animate-spin">sync</span> Verifying…</>
+                : "Verify & Login"}
             </button>
-            <button onClick={() => { setStep(1); setOtpInput(""); setError(""); }}
-              className="w-full border border-outline-variant text-on-surface-variant py-3 rounded-lg text-xs font-bold active:scale-95">
+            <button onClick={() => { setStep(1); setOtpInput(""); setError(""); }} disabled={verifying}
+              className="w-full border border-outline-variant text-on-surface-variant py-3 rounded-lg text-xs font-bold active:scale-95 disabled:opacity-60">
               Back to Login
             </button>
           </div>
