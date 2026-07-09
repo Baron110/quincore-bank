@@ -5,9 +5,51 @@ import { db, auth } from "../firebaseConfig";
 import { useUserData } from "../hooks/useUserData";
 import { useNavigate } from "react-router-dom";
 import { LANGUAGES } from "../utils/languages";
+import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import MobileNav from "../components/MobileNav";
 import Header from "../components/Header";
+
+function TwoFactorToggle({ userData, uid }) {
+  const [saving,  setSaving]  = useState(false);
+  const [saved,   setSaved]   = useState(false);
+  const enabled = userData?.twoFactorEnabled === true;
+
+  const handleToggle = async () => {
+    setSaving(true);
+    try {
+      await updateDoc(doc(db, "users", uid), { twoFactorEnabled: !enabled });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <span className="material-symbols-outlined text-primary text-[20px]">shield</span>
+        <p className="text-sm font-bold text-primary">Two-Factor Authentication</p>
+        {saved && <span className="text-xs text-green-600 font-bold ml-auto">✓ Saved</span>}
+      </div>
+      <p className="text-xs text-on-surface-variant">
+        When enabled, we'll email you a 6-digit code every time you log in, in addition to your password.
+      </p>
+      <button
+        onClick={handleToggle}
+        disabled={saving}
+        className={`w-full flex items-center justify-between px-4 py-3 rounded-lg border transition-colors disabled:opacity-60 ${
+          enabled ? "bg-green-50 border-green-200" : "bg-surface-container-low border-outline-variant"
+        }`}>
+        <span className={`text-xs font-bold ${enabled ? "text-green-700" : "text-on-surface-variant"}`}>
+          {enabled ? "Enabled — you'll be asked for a code at login" : "Disabled — tap to turn on"}
+        </span>
+        <div className={`w-11 h-6 rounded-full relative transition-colors ${enabled ? "bg-green-500" : "bg-outline-variant"}`}>
+          <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${enabled ? "translate-x-[22px]" : "translate-x-0.5"}`} />
+        </div>
+      </button>
+    </div>
+  );
+}
 
 function LanguageSwitcher({ userData, uid }) {
   const [saving, setSaving] = useState(false);
@@ -345,6 +387,9 @@ export default function ProfilePage() {
 
           {/* Language Switcher */}
           <LanguageSwitcher userData={userData} uid={uid} />
+
+          {/* Two-Factor Authentication Toggle */}
+          <TwoFactorToggle userData={userData} uid={uid} />
 
           {/* Existing Loan Applications */}
           {(userData.loanApplications || []).length > 0 && (

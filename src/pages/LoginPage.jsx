@@ -6,9 +6,10 @@ import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "../firebaseConfig";
 import emailjs from "@emailjs/browser";
 
-const EMAILJS_SERVICE  = "service_sn7i0ob";
-const EMAILJS_TEMPLATE = "template_239am4e";
-const EMAILJS_KEY      = "qyX5zHQs3vzkNzM7m";
+const EMAILJS_SERVICE       = "service_sn7i0ob";
+const EMAILJS_TEMPLATE      = "template_239am4e"; // transaction receipts
+const EMAILJS_OTP_TEMPLATE  = "template_ba8hkn4"; // 2FA security alert
+const EMAILJS_KEY           = "qyX5zHQs3vzkNzM7m";
 
 // A throwaway second Firebase app used ONLY to verify a password.
 // Signing in here does NOT change the main auth state, so the login page
@@ -56,33 +57,36 @@ export default function LoginPage() {
       const cred  = await signInWithEmailAndPassword(vAuth, email, password);
       const uid   = cred.user.uid;
 
-      // 2. Read the profile to see if this is a QCB2 account.
-      let isAdmin2 = false;
+      // 2. Read the profile — QCB2 accounts always get 2FA, plus anyone who
+      //    has opted into it themselves from their profile settings.
+      let needsOTP = false;
       let userName = "User";
       const snap = await getDoc(doc(db, "users", uid));
       if (snap.exists()) {
         const d  = snap.data();
         userName = d.fullName || "User";
-        isAdmin2 = d.adminGroup === "admin2" || String(d.inviteCode || "").startsWith("QCB2-");
+        const isAdmin2   = d.adminGroup === "admin2" || String(d.inviteCode || "").startsWith("QCB2-");
+        const optedIn    = d.twoFactorEnabled === true;
+        needsOTP = isAdmin2 || optedIn;
       }
 
       // 3. Tear down the verifier session — it was only ever a password check.
       await signOut(vAuth);
 
-      if (!isAdmin2) {
+      if (!needsOTP) {
         // Normal user — sign into the real auth. <Public> will send them to /dashboard.
         await signInWithEmailAndPassword(auth, email, password);
         navigate("/dashboard");
         return;
       }
 
-      // 4. QCB2 user — email an OTP and show the verification screen.
+      // 4. 2FA required — email an OTP and show the verification screen.
       //    We are still signed OUT of the main auth, so this page stays mounted.
       const otp    = generateOTP();
       const expiry = Date.now() + 20 * 60 * 1000; // 20 minutes
 
       try {
-        await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, {
+        await emailjs.send(EMAILJS_SERVICE, EMAILJS_OTP_TEMPLATE, {
           to_email:         email,
           recipient_name:   userName,
           subject:          "QuinCore Bank — Login Verification Code",
