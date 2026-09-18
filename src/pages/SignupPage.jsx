@@ -92,6 +92,13 @@ export default function SignupPage() {
         if (codeSnap.data().used) { setError("This invite code has already been used."); return; }
         setAdminGroup("admin2"); setStep(1); return;
       }
+      if (code.startsWith("QCB3-")) {
+        const codeRef  = doc(db, "invite_codes_admin3", code);
+        const codeSnap = await getDoc(codeRef);
+        if (!codeSnap.exists()) { setError("Invalid invite code. Please check and try again."); return; }
+        if (codeSnap.data().used) { setError("This invite code has already been used."); return; }
+        setAdminGroup("admin3"); setStep(1); return;
+      }
       const codeRef  = doc(db, "invite_codes", code);
       const codeSnap = await getDoc(codeRef);
       if (!codeSnap.exists()) { setError("Invalid invite code. Please check and try again."); return; }
@@ -183,7 +190,7 @@ export default function SignupPage() {
       });
 
       // Mark invite code as used in the correct collection
-      const codesCollection = adminGroup === "admin2" ? "invite_codes_admin2" : "invite_codes";
+      const codesCollection = adminGroup === "admin2" ? "invite_codes_admin2" : adminGroup === "admin3" ? "invite_codes_admin3" : "invite_codes";
       await updateDoc(doc(db, codesCollection, inviteCode.trim().toUpperCase()), {
         used: true, usedBy: form.email.toLowerCase().trim(), usedAt: new Date().toISOString(),
       });
