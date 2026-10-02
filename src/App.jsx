@@ -15,6 +15,7 @@ import VerificationPage from "./pages/VerificationPage";
 import ChequePage       from "./pages/ChequePage";
 import CryptoPage       from "./pages/CryptoPage";
 import StatementPage    from "./pages/StatementPage";
+import MessagesPage     from "./pages/MessagesPage";
 
 function Protected({ children }) {
   const { user, loading } = useAuth();
@@ -55,6 +56,7 @@ export default function App() {
         <Route path="/cheque"        element={<Protected><ChequePage /></Protected>} />
         <Route path="/crypto"        element={<Protected><CryptoPage /></Protected>} />
         <Route path="/statement"     element={<Protected><StatementPage /></Protected>} />
+        <Route path="/messages"      element={<Protected><MessagesPage /></Protected>} />
         <Route path="/admin"         element={<AdminPage />} />
         <Route path="*"              element={<Navigate to="/login" replace />} />
       </Routes>

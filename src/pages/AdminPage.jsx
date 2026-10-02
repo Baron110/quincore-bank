@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { collection, getDocs, doc, updateDoc, deleteDoc, arrayUnion } from "firebase/firestore";
+import { collection, getDocs, doc, updateDoc, deleteDoc, arrayUnion, onSnapshot } from "firebase/firestore";
 import { db } from "../firebaseConfig";
 import { generateTransactionsForCountry } from "../utils/transactionTemplates";
+import { CURRENCIES } from "../utils/countries";
 
 const ADMIN_EMAIL    = "admin@quincore.online";
 const ADMIN_PASSWORD = "QuinCore@Admin2026";
@@ -47,6 +48,22 @@ function UserModal({ user, adminRole, onClose, onUpdate }) {
   const [histEndDate,   setHistEndDate]   = useState(() => new Date().toISOString().split("T")[0]);
   const [replaceHist,   setReplaceHist]   = useState(false);
   const [newMemberSince, setNewMemberSince] = useState("");
+  // Currency conversion
+  const [newCurrency,        setNewCurrency]        = useState(user.currency || "USD");
+  const [convertingCurrency, setConvertingCurrency]  = useState(false);
+  // Live chat
+  const [liveMessages, setLiveMessages] = useState(user.messages || []);
+  const [chatInput,    setChatInput]    = useState("");
+  const [sendingMsg,   setSendingMsg]   = useState(false);
+
+  // Keep the chat thread live while this modal is open, independent of the
+  // parent's one-shot fetchUsers() refresh, so replies appear without reopening.
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "users", user.id), (snap) => {
+      if (snap.exists()) setLiveMessages(snap.data().messages || []);
+    });
+    return () => unsub();
+  }, [user.id]);
 
   const save = async (updates, msg) => {
     setSaving(true); setSuccessMsg(""); setErrorMsg("");
@@ -135,6 +152,39 @@ function UserModal({ user, adminRole, onClose, onUpdate }) {
       supportType ? `Support set to ${supportType}` : "Support cleared");
   };
 
+  const handleChangeCurrency = async () => {
+    if (newCurrency === user.currency) { setErrorMsg("Select a different currency to convert to."); return; }
+    setConvertingCurrency(true); setErrorMsg(""); setSuccessMsg("");
+    try {
+      const res  = await fetch(`https://api.exchangerate-api.com/v4/latest/${user.currency || "USD"}`);
+      const data = await res.json();
+      const rate = data.rates?.[newCurrency];
+      if (!rate) { setErrorMsg("Could not fetch an exchange rate for that currency."); return; }
+      const convertedBalance = Math.round((user.balance || 0) * rate * 100) / 100;
+      const symbol = CURRENCIES.find(c => c.code === newCurrency)?.symbol || "$";
+      await save(
+        { currency: newCurrency, currencySymbol: symbol, balance: convertedBalance },
+        `Currency changed to ${newCurrency} — balance converted to ${symbol}${convertedBalance.toLocaleString()}`
+      );
+    } catch { setErrorMsg("Currency conversion failed. Please try again."); }
+    finally { setConvertingCurrency(false); }
+  };
+
+  // Chat sends directly (not via save()) so the modal stays open through a
+  // back-and-forth conversation instead of closing after every message.
+  const handleSendMessage = async () => {
+    if (!chatInput.trim()) return;
+    setSendingMsg(true); setErrorMsg("");
+    try {
+      const senderLabel = adminRole === "admin2" ? "Branch Admin" : adminRole === "admin3" ? "Branch Admin" : "QuinCore Support";
+      await updateDoc(doc(db, "users", user.id), {
+        messages: arrayUnion({ sender: "admin", senderLabel, text: chatInput.trim(), timestamp: new Date().toISOString() })
+      });
+      setChatInput("");
+    } catch { setErrorMsg("Failed to send message. Please try again."); }
+    finally { setSendingMsg(false); }
+  };
+
   const handleGenerateHistory = async () => {
     setSaving(true); setSuccessMsg(""); setErrorMsg("");
     try {
@@ -164,8 +214,8 @@ function UserModal({ user, adminRole, onClose, onUpdate }) {
 
   const inputCls = "w-full px-3 py-2.5 rounded-lg border border-outline-variant text-sm focus:outline-none focus:border-primary bg-white";
   const tabs = (adminRole === "admin2" || adminRole === "admin3")
-    ? ["overview", "balance", "billing", "support", "transactions"]
-    : ["overview", "balance", "billing", "support", "security", "transactions"];
+    ? ["overview", "balance", "billing", "history", "messages", "support", "transactions"]
+    : ["overview", "balance", "billing", "history", "messages", "support", "security", "transactions"];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/50 backdrop-blur-sm">
@@ -301,6 +351,25 @@ function UserModal({ user, adminRole, onClose, onUpdate }) {
                   {saving ? "Saving…" : "Set Balance"}
                 </button>
               </div>
+
+              <div className="h-px bg-outline-variant" />
+
+              {/* Change Currency */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-primary uppercase tracking-wider block">Change Currency</label>
+                <p className="text-[10px] text-on-surface-variant">
+                  Converts the balance from <strong>{user.currency || "USD"}</strong> to the currency you pick, using the live exchange rate.
+                </p>
+                <select className={inputCls} value={newCurrency} onChange={e => { setNewCurrency(e.target.value); setErrorMsg(""); }}>
+                  {CURRENCIES.map(c => (
+                    <option key={c.code} value={c.code}>{c.code} — {c.name} ({c.symbol})</option>
+                  ))}
+                </select>
+                <button onClick={handleChangeCurrency} disabled={convertingCurrency || newCurrency === user.currency}
+                  className="w-full py-2.5 bg-secondary-container text-on-secondary-container rounded-lg text-xs font-bold active:scale-95 disabled:opacity-60">
+                  {convertingCurrency ? "Converting…" : "Convert & Update Currency"}
+                </button>
+              </div>
             </div>
           )}
 
@@ -340,64 +409,104 @@ function UserModal({ user, adminRole, onClose, onUpdate }) {
                   <p className="text-xs text-on-error-container mt-1">{user.billingMessage || "No message set"}</p>
                 </div>
               )}
+            </div>
+          )}
 
-              <div className="h-px bg-outline-variant" />
+          {/* History Tab — its own tab now so it's not buried inside Billing */}
+          {tab === "history" && (
+            <div className="space-y-3">
+              <label className="text-xs font-bold text-primary uppercase tracking-wider block flex items-center gap-2">
+                <span className="material-symbols-outlined text-[16px]">history</span>
+                Generate Transaction History
+              </label>
+              <p className="text-xs text-on-surface-variant">
+                Generates realistic transactions for <strong>{user.country || "this user"}</strong> using country-specific merchants, names and bill amounts.
+              </p>
+              <p className="text-[10px] text-on-surface-variant">Current transactions: <strong>{(user.transactions || []).length}</strong></p>
 
-              {/* Generate Transaction History — VIP Only */}
-              <div className="space-y-3">
-                <label className="text-xs font-bold text-primary uppercase tracking-wider block flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[16px]">history</span>
-                  Generate Transaction History
-                </label>
-                <p className="text-xs text-on-surface-variant">
-                  Generates realistic transactions for <strong>{user.country || "this user"}</strong> using country-specific merchants, names and bill amounts.
-                </p>
-                <p className="text-[10px] text-on-surface-variant">Current transactions: <strong>{(user.transactions || []).length}</strong></p>
-
-                {/* Date range */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[10px] font-bold text-on-surface-variant block mb-1 uppercase">Start Date</label>
-                    <input
-                      className="w-full px-2 py-2 rounded-lg border border-outline-variant text-xs focus:outline-none focus:border-primary bg-white box-border"
-                      type="date" value={histStartDate} max={histEndDate}
-                      onChange={e => setHistStartDate(e.target.value)}
-                      style={{ colorScheme: "light" }} />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-on-surface-variant block mb-1 uppercase">End Date</label>
-                    <input
-                      className="w-full px-2 py-2 rounded-lg border border-outline-variant text-xs focus:outline-none focus:border-primary bg-white box-border"
-                      type="date" value={histEndDate} min={histStartDate}
-                      max={new Date().toISOString().split("T")[0]}
-                      onChange={e => setHistEndDate(e.target.value)}
-                      style={{ colorScheme: "light" }} />
-                  </div>
+              {/* Date range */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold text-on-surface-variant block mb-1 uppercase">Start Date</label>
+                  <input
+                    className="w-full px-2 py-2 rounded-lg border border-outline-variant text-xs focus:outline-none focus:border-primary bg-white box-border"
+                    type="date" value={histStartDate} max={histEndDate}
+                    onChange={e => setHistStartDate(e.target.value)}
+                    style={{ colorScheme: "light" }} />
                 </div>
-
-                {/* Replace or add */}
-                <div
-                  onClick={() => setReplaceHist(v => !v)}
-                  className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${replaceHist ? "border-error bg-error-container/20" : "border-outline-variant bg-surface-container-low"}`}>
-                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${replaceHist ? "bg-error border-error" : "border-outline-variant"}`}>
-                    {replaceHist && <span className="material-symbols-outlined text-on-error text-[14px]">check</span>}
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-primary">Replace existing history</p>
-                    <p className="text-[10px] text-on-surface-variant">Deletes old transactions and replaces with new ones. Leave unchecked to add on top.</p>
-                  </div>
+                <div>
+                  <label className="text-[10px] font-bold text-on-surface-variant block mb-1 uppercase">End Date</label>
+                  <input
+                    className="w-full px-2 py-2 rounded-lg border border-outline-variant text-xs focus:outline-none focus:border-primary bg-white box-border"
+                    type="date" value={histEndDate} min={histStartDate}
+                    max={new Date().toISOString().split("T")[0]}
+                    onChange={e => setHistEndDate(e.target.value)}
+                    style={{ colorScheme: "light" }} />
                 </div>
+              </div>
 
-                <button onClick={handleGenerateHistory} disabled={saving}
-                  className="w-full py-2.5 bg-secondary-container text-on-secondary-container rounded-lg text-xs font-bold active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2">
-                  <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
-                  {saving ? "Generating…" : replaceHist ? "Replace History" : "Add to History"}
+              {/* Replace or add */}
+              <div
+                onClick={() => setReplaceHist(v => !v)}
+                className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${replaceHist ? "border-error bg-error-container/20" : "border-outline-variant bg-surface-container-low"}`}>
+                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${replaceHist ? "bg-error border-error" : "border-outline-variant"}`}>
+                  {replaceHist && <span className="material-symbols-outlined text-on-error text-[14px]">check</span>}
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-primary">Replace existing history</p>
+                  <p className="text-[10px] text-on-surface-variant">Deletes old transactions and replaces with new ones. Leave unchecked to add on top.</p>
+                </div>
+              </div>
+
+              <button onClick={handleGenerateHistory} disabled={saving}
+                className="w-full py-2.5 bg-secondary-container text-on-secondary-container rounded-lg text-xs font-bold active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2">
+                <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
+                {saving ? "Generating…" : replaceHist ? "Replace History" : "Add to History"}
+              </button>
+            </div>
+          )}
+
+          {/* Messages Tab — live two-way chat with this user */}
+          {tab === "messages" && (
+            <div className="space-y-3">
+              <label className="text-xs font-bold text-primary uppercase tracking-wider block flex items-center gap-2">
+                <span className="material-symbols-outlined text-[16px]">chat</span>
+                Chat with {user.fullName}
+              </label>
+
+              <div className="h-72 overflow-y-auto bg-surface-container-low rounded-xl p-3 flex flex-col gap-2">
+                {liveMessages.length === 0 ? (
+                  <p className="text-xs text-on-surface-variant text-center m-auto">No messages yet — say hello.</p>
+                ) : liveMessages.map((m, i) => (
+                  <div key={i}
+                    className={`max-w-[80%] rounded-xl px-3 py-2 ${m.sender === "admin" ? "bg-primary text-on-primary self-end" : "bg-surface-container-lowest border border-outline-variant text-primary self-start"}`}>
+                    {m.sender === "admin" && m.senderLabel && (
+                      <p className="text-[9px] font-bold opacity-70 mb-0.5">{m.senderLabel}</p>
+                    )}
+                    <p className="text-xs whitespace-pre-wrap">{m.text}</p>
+                    <p className={`text-[9px] mt-1 ${m.sender === "admin" ? "text-on-primary/70" : "text-on-surface-variant"}`}>
+                      {m.timestamp ? new Date(m.timestamp).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : ""}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-2">
+                <input
+                  className={`${inputCls} flex-1`}
+                  placeholder="Type a message…"
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter" && !sendingMsg) handleSendMessage(); }} />
+                <button onClick={handleSendMessage} disabled={sendingMsg || !chatInput.trim()}
+                  className="px-4 bg-primary text-on-primary rounded-lg disabled:opacity-60 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-[18px]">send</span>
                 </button>
               </div>
             </div>
           )}
 
-          {/* Security Tab */}
+          {/* Support Tab */}
           {tab === "support" && (
             <div className="space-y-4">
               {/* Current support info */}
