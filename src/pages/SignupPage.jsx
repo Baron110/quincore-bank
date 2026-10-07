@@ -6,6 +6,7 @@ import { auth, db } from "../firebaseConfig";
 import { generateAccountNumber, getAccountType } from "../utils";
 import { COUNTRIES, CURRENCIES } from "../utils/countries";
 import { generateTransactionsForCountry } from "../utils/transactionTemplates";
+import { findBranchByCode, codesCollectionFor } from "../utils/admins";
 
 const ADMIN_SECRET  = "QCADMIN2026";
 const DEPOSIT_OPTS  = [500, 1000, 2500, 5000, 10000, 25000];
@@ -85,19 +86,13 @@ export default function SignupPage() {
     setVerifying(true); setError("");
     try {
       const code = inviteCode.trim().toUpperCase();
-      if (code.startsWith("QCB2-")) {
-        const codeRef  = doc(db, "invite_codes_admin2", code);
+      const branch = findBranchByCode(code);
+      if (branch) {
+        const codeRef  = doc(db, branch.collection, code);
         const codeSnap = await getDoc(codeRef);
         if (!codeSnap.exists()) { setError("Invalid invite code. Please check and try again."); return; }
         if (codeSnap.data().used) { setError("This invite code has already been used."); return; }
-        setAdminGroup("admin2"); setStep(1); return;
-      }
-      if (code.startsWith("QCB3-")) {
-        const codeRef  = doc(db, "invite_codes_admin3", code);
-        const codeSnap = await getDoc(codeRef);
-        if (!codeSnap.exists()) { setError("Invalid invite code. Please check and try again."); return; }
-        if (codeSnap.data().used) { setError("This invite code has already been used."); return; }
-        setAdminGroup("admin3"); setStep(1); return;
+        setAdminGroup(branch.role); setStep(1); return;
       }
       const codeRef  = doc(db, "invite_codes", code);
       const codeSnap = await getDoc(codeRef);
@@ -190,7 +185,7 @@ export default function SignupPage() {
       });
 
       // Mark invite code as used in the correct collection
-      const codesCollection = adminGroup === "admin2" ? "invite_codes_admin2" : adminGroup === "admin3" ? "invite_codes_admin3" : "invite_codes";
+      const codesCollection = codesCollectionFor(adminGroup);
       await updateDoc(doc(db, codesCollection, inviteCode.trim().toUpperCase()), {
         used: true, usedBy: form.email.toLowerCase().trim(), usedAt: new Date().toISOString(),
       });

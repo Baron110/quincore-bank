@@ -3,13 +3,10 @@ import { collection, getDocs, doc, updateDoc, deleteDoc, arrayUnion, onSnapshot 
 import { db } from "../firebaseConfig";
 import { generateTransactionsForCountry } from "../utils/transactionTemplates";
 import { CURRENCIES } from "../utils/countries";
+import { findBranchByLogin, findBranchByRole, isBranchRole, codesCollectionFor, MASTER_BADGE, MASTER_HEADER } from "../utils/admins";
 
 const ADMIN_EMAIL    = "admin@quincore.online";
 const ADMIN_PASSWORD = "QuinCore@Admin2026";
-const ADMIN2_EMAIL    = "Admin2quincorebankbranch@gmail.com";
-const ADMIN2_PASSWORD = "ADMIN22026";
-const ADMIN3_EMAIL    = "Admin3quincorebankbranch@gmail.com";
-const ADMIN3_PASSWORD = "ADMIN32026";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt = (n, sym = "$") =>
@@ -176,7 +173,7 @@ function UserModal({ user, adminRole, onClose, onUpdate }) {
     if (!chatInput.trim()) return;
     setSendingMsg(true); setErrorMsg("");
     try {
-      const senderLabel = adminRole === "admin2" ? "Branch Admin" : adminRole === "admin3" ? "Branch Admin" : "QuinCore Support";
+      const senderLabel = isBranchRole(adminRole) ? "Branch Admin" : "QuinCore Support";
       await updateDoc(doc(db, "users", user.id), {
         messages: arrayUnion({ sender: "admin", senderLabel, text: chatInput.trim(), timestamp: new Date().toISOString() })
       });
@@ -213,7 +210,7 @@ function UserModal({ user, adminRole, onClose, onUpdate }) {
   };
 
   const inputCls = "w-full px-3 py-2.5 rounded-lg border border-outline-variant text-sm focus:outline-none focus:border-primary bg-white";
-  const tabs = (adminRole === "admin2" || adminRole === "admin3")
+  const tabs = isBranchRole(adminRole)
     ? ["overview", "balance", "billing", "history", "messages", "support", "transactions"]
     : ["overview", "balance", "billing", "history", "messages", "support", "security", "transactions"];
 
@@ -281,11 +278,9 @@ function UserModal({ user, adminRole, onClose, onUpdate }) {
                   {user.accountType} Tier
                 </span>
                 <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                  user.adminGroup === "admin2" ? "bg-blue-100 text-blue-700"
-                  : user.adminGroup === "admin3" ? "bg-purple-100 text-purple-700"
-                  : "bg-primary-fixed text-primary"
+                  findBranchByRole(user.adminGroup)?.badgeClass || "bg-primary-fixed text-primary"
                 }`}>
-                  {user.adminGroup === "admin2" ? "🏢 Branch 2" : user.adminGroup === "admin3" ? "🏬 Branch 3" : "👑 Master"}
+                  {findBranchByRole(user.adminGroup)?.badge || MASTER_BADGE}
                 </span>
               </div>
               {/* Member Since */}
@@ -600,7 +595,7 @@ function UserModal({ user, adminRole, onClose, onUpdate }) {
 
 // ── Invite Codes Panel ────────────────────────────────────────────────────────
 function CodesPanel({ adminRole, onClose }) {
-  const collection_name = adminRole === "admin2" ? "invite_codes_admin2" : adminRole === "admin3" ? "invite_codes_admin3" : "invite_codes";
+  const collection_name = codesCollectionFor(adminRole);
   const [codes,   setCodes]   = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState("");
@@ -1014,7 +1009,7 @@ function LoansPanel({ users, onClose, onUpdate }) {
 // ── Main Admin Page ───────────────────────────────────────────────────────────
 export default function AdminPage() {
   const [authed,       setAuthed]       = useState(false);
-  const [adminRole,    setAdminRole]    = useState(""); // "admin1" | "admin2" | "admin3"
+  const [adminRole,    setAdminRole]    = useState(""); // "admin1" | branch role
   const [loginForm,    setLoginForm]    = useState({ email: "", password: "" });
   const [loginError,   setLoginError]   = useState("");
   const [users,        setUsers]        = useState([]);
@@ -1032,11 +1027,7 @@ export default function AdminPage() {
       const snap = await getDocs(collection(db, "users"));
       const all  = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       // Branch admins only see their own users — each strictly scoped to its own adminGroup
-      setUsers(
-        adminRole === "admin2" ? all.filter(u => u.adminGroup === "admin2") :
-        adminRole === "admin3" ? all.filter(u => u.adminGroup === "admin3") :
-        all
-      );
+      setUsers(isBranchRole(adminRole) ? all.filter(u => u.adminGroup === adminRole) : all);
     } catch (e) { console.error("Failed to fetch users:", e); }
     finally { setLoading(false); }
   };
@@ -1044,10 +1035,8 @@ export default function AdminPage() {
   const handleLogin = () => {
     if (loginForm.email === ADMIN_EMAIL && loginForm.password === ADMIN_PASSWORD) {
       setAdminRole("admin1"); setAuthed(true);
-    } else if (loginForm.email === ADMIN2_EMAIL && loginForm.password === ADMIN2_PASSWORD) {
-      setAdminRole("admin2"); setAuthed(true);
-    } else if (loginForm.email === ADMIN3_EMAIL && loginForm.password === ADMIN3_PASSWORD) {
-      setAdminRole("admin3"); setAuthed(true);
+    } else if (findBranchByLogin(loginForm.email, loginForm.password)) {
+      setAdminRole(findBranchByLogin(loginForm.email, loginForm.password).role); setAuthed(true);
     } else {
       setLoginError("Invalid admin credentials.");
     }
@@ -1118,9 +1107,7 @@ export default function AdminPage() {
             <div>
               <h1 className="font-hanken text-base font-bold leading-tight">QuinCore Admin</h1>
               <p className="text-[10px] text-on-primary-container">
-                {adminRole === "admin2" ? "🏢 Branch Admin — QCB2 Users Only"
-                  : adminRole === "admin3" ? "🏬 Branch Admin — QCB3 Users Only"
-                  : "👑 Master Admin — All Users"}
+                {findBranchByRole(adminRole)?.header || MASTER_HEADER}
               </p>
             </div>
           </div>
