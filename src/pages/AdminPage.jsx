@@ -44,6 +44,7 @@ function UserModal({ user, adminRole, onClose, onUpdate }) {
   const [histStartDate, setHistStartDate] = useState(() => { const d = new Date(); d.setMonth(d.getMonth()-3); return d.toISOString().split("T")[0]; });
   const [histEndDate,   setHistEndDate]   = useState(() => new Date().toISOString().split("T")[0]);
   const [replaceHist,   setReplaceHist]   = useState(false);
+  const [histCount,     setHistCount]     = useState(""); // blank = automatic
   const [newMemberSince, setNewMemberSince] = useState("");
   // Currency conversion
   const [newCurrency,        setNewCurrency]        = useState(user.currency || "USD");
@@ -170,10 +171,20 @@ function UserModal({ user, adminRole, onClose, onUpdate }) {
     const [y, m, d] = str.split("-").map(Number);
     return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   };
+  // Builds "Transfer to Baron — Shopping" from the Person / Purpose boxes
+  const composeDesc = (d, name, purpose) => {
+    const prefix = d.prefix || (["received", "deposit"].includes(d.type) ? "Transfer from" : "Transfer to");
+    const base = name.trim() ? `${prefix} ${name.trim()}` : "";
+    return purpose.trim() ? (base ? `${base} — ${purpose.trim()}` : purpose.trim()) : base;
+  };
   const startEditTx = (i) => {
     const tx = txs[i];
     setEditIdx(i);
+    const m = String(tx.description || "").match(/^(Transfer to|Transfer from|Sent to|Received from|Paid to)\s+(.+?)(?:\s+[—–-]\s+(.+))?$/i);
     setEditDraft({
+      prefix:      m ? m[1] : "",
+      name:        m ? m[2] : "",
+      purpose:     m && m[3] ? m[3] : "",
       description: tx.description || "",
       amount:      String(tx.amount ?? ""),
       type:        tx.type || "sent",
@@ -268,7 +279,8 @@ function UserModal({ user, adminRole, onClose, onUpdate }) {
         user.balance || 0,
         user.country || "United States",
         histStartDate,
-        histEndDate
+        histEndDate,
+        histCount === "" ? undefined : parseInt(histCount, 10)
       );
       const updates = replaceHist
         ? { transactions: newTxns }
@@ -519,6 +531,16 @@ function UserModal({ user, adminRole, onClose, onUpdate }) {
                 </div>
               </div>
 
+              {/* How many */}
+              <div>
+                <label className="text-[10px] font-bold text-on-surface-variant block mb-1 uppercase">Number of transactions</label>
+                <input
+                  className="w-full px-2 py-2 rounded-lg border border-outline-variant text-xs focus:outline-none focus:border-primary bg-white box-border"
+                  type="number" min="1" max="200" inputMode="numeric" value={histCount}
+                  placeholder="Leave blank for automatic (based on date range)"
+                  onChange={e => setHistCount(e.target.value)} />
+              </div>
+
               {/* Replace or add */}
               <div
                 onClick={() => setReplaceHist(v => !v)}
@@ -692,7 +714,13 @@ function UserModal({ user, adminRole, onClose, onUpdate }) {
                   const set = (k) => (e) => setEditDraft(d => ({ ...d, [k]: e.target.value }));
                   return (
                     <div key={i} className="p-3 bg-surface-container-low rounded-lg border-2 border-primary space-y-2">
-                      <input className={inputCls} value={editDraft.description} onChange={set("description")} placeholder="Description" />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input className={inputCls} value={editDraft.name} placeholder="Person / business (e.g. Baron)"
+                          onChange={e => setEditDraft(d => ({ ...d, name: e.target.value, description: composeDesc(d, e.target.value, d.purpose) }))} />
+                        <input className={inputCls} value={editDraft.purpose} placeholder="Purpose (e.g. Shopping)"
+                          onChange={e => setEditDraft(d => ({ ...d, purpose: e.target.value, description: composeDesc(d, d.name, e.target.value) }))} />
+                      </div>
+                      <input className={inputCls} value={editDraft.description} onChange={set("description")} placeholder="Full description, e.g. Transfer to Baron — Shopping" />
                       <div className="grid grid-cols-2 gap-2">
                         <input className={inputCls} type="number" step="0.01" value={editDraft.amount} onChange={set("amount")} placeholder="Amount" />
                         <input className={inputCls} type="date" value={editDraft.date} onChange={set("date")} />

@@ -205,14 +205,16 @@ function formatDate(d) {
   return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-export function generateTransactionsForCountry(balance, country, startDate, endDate) {
+export function generateTransactionsForCountry(balance, country, startDate, endDate, targetCount) {
   const names     = NAMES[country]     || NAMES.default;
   const companies = COMPANIES[country] || COMPANIES.default;
   const bills     = BILLS[country]     || BILLS.default;
   const rent      = RENT[country]      || RENT.default;
 
   const dayRange  = Math.max(1, Math.floor((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)));
-  const count     = Math.min(Math.max(12, Math.floor(dayRange / 2.5)), 35);
+  const wanted    = Number.isFinite(targetCount) && targetCount > 0 ? Math.min(Math.floor(targetCount), 200) : 0;
+  const autoCount = Math.min(Math.max(12, Math.floor(dayRange / 2.5)), 35);
+  const maxLoops  = wanted ? wanted * 8 : autoCount;
 
   const transactions = [];
   let runningBalance = balance;
@@ -256,7 +258,7 @@ export function generateTransactionsForCountry(balance, country, startDate, endD
   }
 
   // Fill remaining transactions
-  for (let i = 0; i < count; i++) {
+  for (let i = 0; i < maxLoops && (!wanted || transactions.length < wanted); i++) {
     const roll = Math.random();
     let txn;
 
@@ -325,5 +327,6 @@ export function generateTransactionsForCountry(balance, country, startDate, endD
     });
   }
 
-  return transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+  const sorted = transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+  return wanted ? sorted.slice(0, wanted) : sorted;
 }
