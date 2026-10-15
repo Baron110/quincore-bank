@@ -52,12 +52,23 @@ function UserModal({ user, adminRole, onClose, onUpdate }) {
   const [liveMessages, setLiveMessages] = useState(user.messages || []);
   const [chatInput,    setChatInput]    = useState("");
   const [sendingMsg,   setSendingMsg]   = useState(false);
+  // Live transaction list (edit/delete) and card block
+  const [txs,       setTxs]       = useState(user.transactions || []);
+  const [editIdx,   setEditIdx]   = useState(null);
+  const [editDraft, setEditDraft] = useState(null);
+  const [cardBlocked, setCardBlocked] = useState(!!user.cardBlocked);
+  const [blockReason, setBlockReason] = useState(user.cardBlockReason || "");
 
   // Keep the chat thread live while this modal is open, independent of the
   // parent's one-shot fetchUsers() refresh, so replies appear without reopening.
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "users", user.id), (snap) => {
-      if (snap.exists()) setLiveMessages(snap.data().messages || []);
+      if (snap.exists()) {
+        const d = snap.data();
+        setLiveMessages(d.messages || []);
+        setTxs(d.transactions || []);
+        setCardBlocked(!!d.cardBlocked);
+      }
     });
     return () => unsub();
   }, [user.id]);
@@ -149,6 +160,74 @@ function UserModal({ user, adminRole, onClose, onUpdate }) {
       supportType ? `Support set to ${supportType}` : "Support cleared");
   };
 
+  // ── Transaction editing ──
+  const pad2 = (n) => String(n).padStart(2, "0");
+  const toInputDate = (str) => {
+    const d = new Date(str);
+    return isNaN(d) ? "" : `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  };
+  const fromInputDate = (str) => {
+    const [y, m, d] = str.split("-").map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  };
+  const startEditTx = (i) => {
+    const tx = txs[i];
+    setEditIdx(i);
+    setEditDraft({
+      description: tx.description || "",
+      amount:      String(tx.amount ?? ""),
+      type:        tx.type || "sent",
+      category:    tx.category || "",
+      status:      tx.status || "Completed",
+      date:        toInputDate(tx.date),
+    });
+    setErrorMsg("");
+  };
+  const writeTxs = async (arr, msg) => {
+    setSaving(true); setErrorMsg(""); setSuccessMsg("");
+    try {
+      await updateDoc(doc(db, "users", user.id), { transactions: arr });
+      setTxs(arr); setSuccessMsg(msg); onUpdate();
+      setTimeout(() => setSuccessMsg(""), 3000);
+      return true;
+    } catch (e) { setErrorMsg(e.message); return false; }
+    finally { setSaving(false); }
+  };
+  const handleSaveTx = async () => {
+    const amt = parseFloat(editDraft.amount);
+    if (!editDraft.description.trim()) { setErrorMsg("Description is required."); return; }
+    if (isNaN(amt) || amt < 0) { setErrorMsg("Enter a valid amount."); return; }
+    if (!editDraft.date) { setErrorMsg("Pick a date."); return; }
+    const arr = txs.map((t, i) => i === editIdx ? {
+      ...t,
+      description: editDraft.description.trim(),
+      amount:      amt,
+      type:        editDraft.type,
+      category:    editDraft.category.trim() || t.category || "General",
+      status:      editDraft.status,
+      date:        fromInputDate(editDraft.date),
+    } : t);
+    if (await writeTxs(arr, "Transaction updated (balance unchanged)")) { setEditIdx(null); setEditDraft(null); }
+  };
+  const handleDeleteTx = async (i) => {
+    if (!window.confirm("Delete this transaction? The balance will not change.")) return;
+    await writeTxs(txs.filter((_, idx) => idx !== i), "Transaction deleted (balance unchanged)");
+    if (editIdx === i) { setEditIdx(null); setEditDraft(null); }
+  };
+
+  // ── Card block / unblock ──
+  const handleBlockCard = async () => {
+    await save({
+      cardBlocked: true,
+      cardBlockReason: blockReason.trim(),
+      cardBlockedAt: new Date().toISOString(),
+    }, "Card blocked");
+  };
+  const handleUnblockCard = async () => {
+    await save({ cardBlocked: false, cardBlockReason: "", cardBlockedAt: "" }, "Card unblocked");
+    setBlockReason("");
+  };
+
   const handleChangeCurrency = async () => {
     if (newCurrency === user.currency) { setErrorMsg("Select a different currency to convert to."); return; }
     setConvertingCurrency(true); setErrorMsg(""); setSuccessMsg("");
@@ -211,8 +290,8 @@ function UserModal({ user, adminRole, onClose, onUpdate }) {
 
   const inputCls = "w-full px-3 py-2.5 rounded-lg border border-outline-variant text-sm focus:outline-none focus:border-primary bg-white";
   const tabs = isBranchRole(adminRole)
-    ? ["overview", "balance", "billing", "history", "messages", "support", "transactions"]
-    : ["overview", "balance", "billing", "history", "messages", "support", "security", "transactions"];
+    ? ["overview", "balance", "card", "billing", "history", "messages", "support", "transactions"]
+    : ["overview", "balance", "card", "billing", "history", "messages", "support", "security", "transactions"];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/50 backdrop-blur-sm">
@@ -563,13 +642,81 @@ function UserModal({ user, adminRole, onClose, onUpdate }) {
             </div>
           )}
 
+          {/* Card Tab */}
+          {tab === "card" && (
+            <div className="space-y-4">
+              <div className={`p-4 rounded-xl border-2 ${cardBlocked ? "border-error bg-error-container/30" : "border-outline-variant bg-surface-container-low"}`}>
+                <div className="flex items-center gap-3">
+                  <span className={`material-symbols-outlined text-[28px] ${cardBlocked ? "text-error" : "text-green-600"}`}>{cardBlocked ? "block" : "credit_card"}</span>
+                  <div>
+                    <p className="text-sm font-bold text-primary">{cardBlocked ? "Card is BLOCKED" : "Card is active"}</p>
+                    <p className="text-xs text-on-surface-variant">
+                      {user.issuedCard?.cardNumber ? `•••• ${String(user.issuedCard.cardNumber).replace(/\D/g, "").slice(-4)}` : "No card number on file"}
+                      {user.cardBlockedAt ? ` · blocked ${new Date(user.cardBlockedAt).toLocaleDateString()}` : ""}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              {!cardBlocked ? (
+                <>
+                  <div>
+                    <label className="text-xs font-bold text-on-surface-variant block mb-1">Reason shown to the user (optional)</label>
+                    <input className={inputCls} value={blockReason} onChange={e => setBlockReason(e.target.value)} placeholder="e.g. Suspicious activity detected" />
+                  </div>
+                  <button onClick={handleBlockCard} disabled={saving}
+                    className="w-full bg-error text-on-error py-2.5 rounded-lg text-sm font-bold disabled:opacity-50">
+                    {saving ? "Saving…" : "Block Card"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  {user.cardBlockReason && <p className="text-xs text-on-surface-variant">Reason: <strong>{user.cardBlockReason}</strong></p>}
+                  <button onClick={handleUnblockCard} disabled={saving}
+                    className="w-full bg-primary text-on-primary py-2.5 rounded-lg text-sm font-bold disabled:opacity-50">
+                    {saving ? "Saving…" : "Unblock Card"}
+                  </button>
+                </>
+              )}
+              <p className="text-[10px] text-on-surface-variant">A blocked card shows as blocked on the user's Virtual Card page, and its number, CVV and copy actions are disabled.</p>
+            </div>
+          )}
+
           {/* Transactions Tab */}
           {tab === "transactions" && (
             <div className="space-y-2">
-              <p className="text-xs font-bold text-on-surface-variant">{(user.transactions || []).length} total transactions</p>
-              {[...(user.transactions || [])].reverse().map((tx, i) => {
+              <p className="text-xs font-bold text-on-surface-variant">{txs.length} total transactions · tap the pencil to edit. Edits never change the balance.</p>
+              {txs.map((tx, i) => ({ tx, i })).reverse().map(({ tx, i }) => {
                 const isIn = ["received","deposit"].includes(tx.type);
                 const isOut = ["sent","bill"].includes(tx.type);
+                if (editIdx === i && editDraft) {
+                  const set = (k) => (e) => setEditDraft(d => ({ ...d, [k]: e.target.value }));
+                  return (
+                    <div key={i} className="p-3 bg-surface-container-low rounded-lg border-2 border-primary space-y-2">
+                      <input className={inputCls} value={editDraft.description} onChange={set("description")} placeholder="Description" />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input className={inputCls} type="number" step="0.01" value={editDraft.amount} onChange={set("amount")} placeholder="Amount" />
+                        <input className={inputCls} type="date" value={editDraft.date} onChange={set("date")} />
+                        <select className={inputCls} value={editDraft.type} onChange={set("type")}>
+                          <option value="sent">Sent (debit)</option>
+                          <option value="bill">Bill (debit)</option>
+                          <option value="received">Received (credit)</option>
+                          <option value="deposit">Deposit (credit)</option>
+                        </select>
+                        <select className={inputCls} value={editDraft.status} onChange={set("status")}>
+                          <option>Completed</option>
+                          <option>Pending</option>
+                          <option>Failed</option>
+                        </select>
+                      </div>
+                      <input className={inputCls} value={editDraft.category} onChange={set("category")} placeholder="Category (e.g. Groceries)" />
+                      <div className="flex gap-2">
+                        <button onClick={handleSaveTx} disabled={saving} className="flex-1 bg-primary text-on-primary py-2 rounded-lg text-xs font-bold disabled:opacity-50">{saving ? "Saving…" : "Save"}</button>
+                        <button onClick={() => { setEditIdx(null); setEditDraft(null); }} className="flex-1 border border-outline-variant py-2 rounded-lg text-xs font-bold text-primary">Cancel</button>
+                        <button onClick={() => handleDeleteTx(i)} className="px-3 border border-error text-error rounded-lg text-xs font-bold">Delete</button>
+                      </div>
+                    </div>
+                  );
+                }
                 return (
                   <div key={i} className="flex items-center gap-3 p-3 bg-surface-container-low rounded-lg">
                     <div className={`w-9 h-9 rounded-full ${tx.color || "bg-secondary-container"} flex items-center justify-center flex-shrink-0`}>
@@ -577,11 +724,13 @@ function UserModal({ user, adminRole, onClose, onUpdate }) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold text-primary truncate">{tx.description}</p>
-                      <p className="text-[10px] text-on-surface-variant">{tx.date} · {tx.category}</p>
+                      <p className="text-[10px] text-on-surface-variant">{tx.date} · {tx.category} · {tx.status}</p>
                     </div>
                     <p className={`text-xs font-bold flex-shrink-0 ${isIn ? "text-green-600" : isOut ? "text-error" : "text-primary"}`}>
                       {isIn ? "+" : isOut ? "-" : ""}{fmt(tx.amount, user.currencySymbol)}
                     </p>
+                    <button onClick={() => startEditTx(i)} className="material-symbols-outlined text-[18px] text-primary active:scale-95" aria-label="Edit transaction">edit</button>
+                    <button onClick={() => handleDeleteTx(i)} className="material-symbols-outlined text-[18px] text-error active:scale-95" aria-label="Delete transaction">delete</button>
                   </div>
                 );
               })}

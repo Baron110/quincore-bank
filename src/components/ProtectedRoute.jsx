@@ -3,8 +3,8 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 
 export default function ProtectedRoute({ children }) {
-  const user = useAuth();
-  if (user === undefined) {
+  const { user, loading } = useAuth();
+  if (loading) {
     // Still loading auth state — show nothing
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">

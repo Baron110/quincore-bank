@@ -23,10 +23,13 @@ export default function VirtualCardPage() {
 
   const card = userData.issuedCard || {};
   const sym  = userData.currencySymbol || "$";
+  const blocked = !!userData.cardBlocked;
+  const last4 = String(card.cardNumber || "").replace(/\D/g, "").slice(-4) || "0000";
   const rawNumber = card.cardNumber || "0000 0000 0000 0000";
   const fullNumber = rawNumber;
 
   const handleCopy = () => {
+    if (blocked) return;
     navigator.clipboard?.writeText(fullNumber).catch(() => {});
     setCopied(true); setTimeout(() => setCopied(false), 2000);
   };
@@ -46,7 +49,14 @@ export default function VirtualCardPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-lg items-start">
             {/* Card Visual */}
             <div className="lg:col-span-7 space-y-md">
-              <div className="relative w-full aspect-[1.586/1] rounded-xl bg-primary-container card-texture p-md md:p-lg flex flex-col justify-between text-on-primary shadow-lg overflow-hidden">
+              <div className={`relative w-full aspect-[1.586/1] rounded-xl bg-primary-container card-texture p-md md:p-lg flex flex-col justify-between text-on-primary shadow-lg overflow-hidden ${blocked ? "grayscale opacity-70" : ""}`}>
+                {blocked && (
+                  <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40">
+                    <span className="bg-error text-on-error px-md py-xs rounded-full font-label-md uppercase tracking-widest flex items-center gap-xs">
+                      <span className="material-symbols-outlined text-[18px]">block</span>Card Blocked
+                    </span>
+                  </div>
+                )}
                 <div className="absolute -right-8 -top-8 w-40 h-40 bg-secondary-fixed/10 rounded-full blur-2xl" />
                 {/* Top */}
                 <div className="flex justify-between items-start relative z-10">
@@ -60,7 +70,7 @@ export default function VirtualCardPage() {
                 </div>
                 {/* Number */}
                 <div className="relative z-10 text-xl md:text-2xl tracking-[0.2em] font-hanken">
-                  {showNumber ? fullNumber : card.cardNumber || "**** **** **** 0000"}
+                  {blocked ? `**** **** **** ${last4}` : showNumber ? fullNumber : card.cardNumber || "**** **** **** 0000"}
                 </div>
                 {/* Bottom */}
                 <div className="flex justify-between items-end relative z-10">
@@ -70,25 +80,25 @@ export default function VirtualCardPage() {
                   </div>
                   <div className="flex gap-lg">
                     <div><p className="text-xs opacity-70">Expires</p><p className="font-label-md">{card.expiry || "12/27"}</p></div>
-                    <div><p className="text-xs opacity-70">CVV</p><p className="font-label-md">{showCvv ? card.cvv : "•••"}</p></div>
+                    <div><p className="text-xs opacity-70">CVV</p><p className="font-label-md">{showCvv && !blocked ? card.cvv : "•••"}</p></div>
                   </div>
                 </div>
               </div>
 
               {/* Action Buttons */}
               <div className="flex flex-wrap gap-sm">
-                <button onClick={() => setShowNumber(v => !v)}
-                  className="flex-1 min-w-[140px] bg-primary text-on-primary py-sm px-md rounded-xl font-label-md flex items-center justify-center gap-xs active:scale-95 transition-transform">
+                <button onClick={() => setShowNumber(v => !v)} disabled={blocked}
+                  className="disabled:opacity-40 disabled:pointer-events-none flex-1 min-w-[140px] bg-primary text-on-primary py-sm px-md rounded-xl font-label-md flex items-center justify-center gap-xs active:scale-95 transition-transform">
                   <span className="material-symbols-outlined text-[20px]">{showNumber ? "visibility_off" : "visibility"}</span>
                   {showNumber ? "Hide" : "Reveal"} Number
                 </button>
-                <button onClick={() => setShowCvv(v => !v)}
-                  className="flex-1 min-w-[140px] border border-outline text-primary py-sm px-md rounded-xl font-label-md flex items-center justify-center gap-xs active:scale-95 transition-transform hover:bg-surface-container-low">
+                <button onClick={() => setShowCvv(v => !v)} disabled={blocked}
+                  className="disabled:opacity-40 disabled:pointer-events-none flex-1 min-w-[140px] border border-outline text-primary py-sm px-md rounded-xl font-label-md flex items-center justify-center gap-xs active:scale-95 transition-transform hover:bg-surface-container-low">
                   <span className="material-symbols-outlined text-[20px]">lock_open</span>
                   {showCvv ? "Hide" : "Show"} CVV
                 </button>
-                <button onClick={handleCopy}
-                  className="flex-1 min-w-[140px] border border-outline text-primary py-sm px-md rounded-xl font-label-md flex items-center justify-center gap-xs active:scale-95 transition-transform hover:bg-surface-container-low">
+                <button onClick={handleCopy} disabled={blocked}
+                  className="disabled:opacity-40 disabled:pointer-events-none flex-1 min-w-[140px] border border-outline text-primary py-sm px-md rounded-xl font-label-md flex items-center justify-center gap-xs active:scale-95 transition-transform hover:bg-surface-container-low">
                   <span className="material-symbols-outlined text-[20px]">{copied ? "check" : "content_copy"}</span>
                   {copied ? "Copied!" : "Copy Details"}
                 </button>
@@ -120,11 +130,12 @@ export default function VirtualCardPage() {
               <div className="bg-surface-container-lowest p-md rounded-xl border border-outline-variant col-span-2 flex justify-between items-center">
                 <div>
                   <p className="font-label-sm text-on-surface-variant">Status</p>
-                  <p className="font-label-md text-primary">Active & Secure</p>
+                  <p className={`font-label-md ${blocked ? "text-error" : "text-primary"}`}>{blocked ? "Blocked" : "Active & Secure"}</p>
+                  {blocked && userData.cardBlockReason && <p className="font-body-sm text-on-surface-variant">{userData.cardBlockReason}</p>}
                 </div>
                 <div className="flex items-center gap-xs">
-                  <span className="w-2 h-2 rounded-full bg-green-500" />
-                  <span className="font-label-sm text-on-surface-variant">Operational</span>
+                  <span className={`w-2 h-2 rounded-full ${blocked ? "bg-red-500" : "bg-green-500"}`} />
+                  <span className="font-label-sm text-on-surface-variant">{blocked ? "Contact support" : "Operational"}</span>
                 </div>
               </div>
             </div>
